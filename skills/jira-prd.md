@@ -92,41 +92,49 @@ Display routing result:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-### 3b — Deep Codebase Exploration (ALL affected repos)
+### 3b — Deep Codebase Exploration (ALL affected repos, run in PARALLEL)
 
-For EVERY affected repo, perform thorough exploration BEFORE writing the plan. This is mandatory — do not skip.
+**Use the Agent tool to spawn one `Explore` subagent per affected repo, all at the same time.**
+Do NOT explore repos serially — launch all subagents in a single message so they run in parallel.
 
-For each affected repo:
+For each affected repo, the subagent prompt must instruct it to:
 
-1. **Read CLAUDE.md** at root or `.claude/CLAUDE.md` — understand conventions, patterns, forbidden patterns
-2. **Search for related existing code** — grep for keywords from the ticket (feature name, entity name, domain terms) to find where similar logic already lives
-3. **Read relevant existing files** — if the ticket touches e.g. "initiatives", read the existing initiative files (service, controller, component, socket handlers, types)
-4. **Understand the data model** — if backend is affected, read the Prisma schema or relevant DB models
-5. **Understand existing socket events** — if socket events are involved, read `src/models/enums/event-names-enum.ts` (Frontend) and the backend socket handler files
-6. **Find cross-repo contracts** — identify API endpoints, socket event names, request/response shapes that must match between repos
-7. **Check for existing patterns** — how are similar features implemented? Follow the same pattern exactly.
+1. **Read CLAUDE.md** at root or `.claude/CLAUDE.md` — conventions, patterns, forbidden patterns
+2. **Grep for keywords from the ticket** (feature name, entity name, domain terms) to find where related code lives
+3. **Read the relevant existing files** — service, controller, component, socket handlers, types for the touched domain
+4. **Read the data model** — Prisma schema or DB models if backend is affected
+5. **Read socket event files** — `src/models/enums/event-names-enum.ts` (Frontend) + backend socket handlers
+6. **Find cross-repo contracts** — API endpoints, socket event names, request/response payload shapes
+7. **Find the closest reference implementation** — the most similar existing feature to use as a pattern
 
-Exploration checklist per repo (run all that are relevant):
-- `Glob("**/*.ts", repo_path)` + keyword grep to find relevant files
-- Read the entity's service file (Backend)
-- Read the entity's controller/router file (Backend)
-- Read the entity's Prisma model (Backend)
-- Read the existing component folder (Frontend)
-- Read `src/constants/utils.ts` (Frontend) — CARD_EVENTS, ACTION_STATUS
-- Read `src/models/enums/event-names-enum.ts` (Frontend) — EVENTNAMES_ENUM
-- Read `src/components/molecules/SingleScreen/Chat/hooks/useSocketEvents.ts` (Frontend) — existing socket handlers
-- Read the existing chat card for the nearest similar feature as a reference implementation
+Each subagent prompt example:
+
+```
+Explore the codebase at /Users/.../pw-react-client-v3 for a ticket about "<ticket summary>".
+
+Find and read:
+- .claude/CLAUDE.md
+- Any files related to "<domain keyword>" (grep across src/)
+- src/constants/utils.ts (CARD_EVENTS, ACTION_STATUS)
+- src/models/enums/event-names-enum.ts (EVENTNAMES_ENUM)
+- src/components/molecules/SingleScreen/Chat/hooks/useSocketEvents.ts
+- The existing component/card closest to this feature
+
+Return: file paths found, relevant code snippets, existing socket events, and the best reference pattern to follow.
+```
+
+Wait for ALL subagents to complete, then consolidate their findings.
 
 Display a brief exploration summary:
 ```
-─── Codebase Exploration ────────────────────────────────
-  Backend:
+─── Codebase Exploration (parallel subagents) ───────────
+  Backend  [Explore subagent]:
   - Found: src/services/InitiativeService.ts (existing logic)
   - Found: src/controllers/InitiativeController.ts
   - Prisma model: Initiative (fields: id, title, endDate, ...)
   - Existing socket events: initiative_update, initiative_create
 
-  Frontend:
+  Frontend  [Explore subagent]:
   - Found: src/components/molecules/InitiativeCard/index.tsx
   - EVENTNAMES_ENUM already has: INITIATIVE_UPDATE
   - CARD_EVENTS already has: initiative_update

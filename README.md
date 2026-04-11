@@ -66,7 +66,7 @@ Type `/jira-prd PW-123` (or paste a full Jira URL) and the plugin:
 ┌────────────────────────▼───────────────────────────────────────┐
 │  STEP 3 — Route + Deep Codebase Exploration                    │
 │                                                                 │
-│  Routing rules:                                                 │
+│  3a: Route ticket to affected repos                            │
 │  • UI / components / chat cards  →  Frontend                   │
 │  • API / socket / DB / services  →  Backend                    │
 │  • LLM / prompts / embeddings    →  AI Server                  │
@@ -74,11 +74,15 @@ Type `/jira-prd PW-123` (or paste a full Jira URL) and the plugin:
 │  • Scheduled AI jobs             →  AI Cron Server             │
 │  • Scheduled data / reports      →  Cron Jobs                  │
 │                                                                 │
-│  For every affected repo (uses Glob + Grep + Read tools):      │
-│  → Read CLAUDE.md — understand conventions                     │
-│  → Grep for related existing code by domain keywords           │
-│  → Read service / controller / component / socket files        │
-│  → Confirm cross-repo payload contracts match                  │
+│  3b: Spawn ONE Explore subagent per affected repo (PARALLEL)   │
+│                                                                 │
+│   Agent(Explore) → Frontend  ─┐                                │
+│   Agent(Explore) → Backend   ─┤  all launched at once          │
+│   Agent(Explore) → AI Server ─┘  via Agent tool                │
+│                                                                 │
+│  Each subagent: reads CLAUDE.md, greps domain keywords,        │
+│  reads service/component/socket files, finds reference pattern │
+│  Returns findings → main skill consolidates → builds plan      │
 └────────────────────────┬───────────────────────────────────────┘
                          │
 ┌────────────────────────▼───────────────────────────────────────┐
@@ -164,7 +168,33 @@ Type `/jira-prd PW-123` (or paste a full Jira URL) and the plugin:
 | `Write` | Creating new files |
 | `Glob` | Finding files by pattern across repos |
 | `Grep` | Searching code for keywords, function names, event names |
-| `Agent` | Spawning subagents for deep parallel codebase exploration |
+| `Agent` | Spawns parallel `Explore` subagents — one per affected repo — during Step 3 |
+
+### How the Agent tool is used
+
+Step 3 (codebase exploration) is the most expensive step. Instead of exploring repos one by one, the skill spawns **one `Explore` subagent per affected repo simultaneously**, all in a single message:
+
+```
+┌─────────────────────────────────────────────────────┐
+│             Step 3 — Parallel Exploration            │
+│                                                      │
+│  Agent (Explore) ──▶ pw-react-client-v3  ┐          │
+│  Agent (Explore) ──▶ pw-server-v3        ├── all    │
+│  Agent (Explore) ──▶ pw-ai-server        │   at     │
+│  Agent (Explore) ──▶ pw-notifications    ┘   once   │
+│                                                      │
+│  Each subagent:                                      │
+│  • Reads CLAUDE.md                                   │
+│  • Greps for ticket domain keywords                  │
+│  • Reads service / component / socket files          │
+│  • Finds closest reference implementation            │
+│  • Returns findings to main skill                    │
+│                                                      │
+│  Main skill waits for all → consolidates → plan      │
+└─────────────────────────────────────────────────────┘
+```
+
+This means a 4-repo ticket explores all repos at the same time rather than sequentially — much faster and more thorough.
 
 ### CLI Dependencies
 
