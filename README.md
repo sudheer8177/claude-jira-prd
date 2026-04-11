@@ -154,43 +154,37 @@ Type `/jira-prd PW-123` (or paste a full Jira URL) and the plugin:
 npm install -g @anthropic/claude-code
 ```
 
-### 2. Configure MCP servers
+### 2. Configure MCP Plugins (Jira + Figma + GitHub)
 
-Add to `~/.claude/settings.json`:
+Three MCP plugins power the automation. Full details in [`mcp/README.md`](mcp/README.md).
 
-```json
-{
-  "mcpServers": {
-    "figma": {
-      "command": "npx",
-      "args": ["-y", "figma-developer-mcp", "--stdio"],
-      "env": { "FIGMA_API_KEY": "${FIGMA_API_KEY}" }
-    },
-    "github": {
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/",
-      "headers": { "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}" }
-    },
-    "atlassian": {
-      "command": "npx",
-      "args": ["-y", "atlassian-mcp"],
-      "env": {
-        "ATLASSIAN_API_TOKEN": "${ATLASSIAN_API_TOKEN}",
-        "ATLASSIAN_EMAIL": "${ATLASSIAN_EMAIL}",
-        "ATLASSIAN_DOMAIN": "${ATLASSIAN_DOMAIN}"
-      }
-    }
-  }
-}
+| Plugin | Package | Purpose |
+|--------|---------|---------|
+| **Figma** | `figma-developer-mcp` | Reads designs linked in the Jira ticket |
+| **Atlassian** | `atlassian-mcp` | Fetches Jira ticket, description, AC |
+| **GitHub** | `api.githubcopilot.com/mcp/` | Raises PRs via GitHub API |
+
+**Quick install:**
+
+```bash
+# Copy MCP settings (uses ${VAR} placeholders — no secrets in the file)
+cp mcp/settings.json ~/.claude/settings.json
 ```
 
 Add to `~/.zshrc` (or `~/.bashrc`):
 ```bash
-export FIGMA_API_KEY="your-figma-api-key"
-export GITHUB_PERSONAL_ACCESS_TOKEN="your-github-pat"
-export ATLASSIAN_API_TOKEN="your-atlassian-api-token"
+export FIGMA_API_KEY="figd_xxxxxxxxxxxx"           # Figma → Settings → Access tokens
+export GITHUB_PERSONAL_ACCESS_TOKEN="ghp_xxxxxxxx" # GitHub → Settings → Developer settings → PAT
+export ATLASSIAN_API_TOKEN="ATATT3xFfGF0xxxxxxxx"  # https://id.atlassian.com/manage-profile/security/api-tokens
 export ATLASSIAN_EMAIL="you@yourcompany.com"
 export ATLASSIAN_DOMAIN="yourcompany.atlassian.net"
+```
+
+```bash
+source ~/.zshrc
+
+# Verify all 3 plugins connected — run inside a Claude Code session:
+# /mcp
 ```
 
 ### 3. Install the skill
