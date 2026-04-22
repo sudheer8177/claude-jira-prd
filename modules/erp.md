@@ -1,117 +1,128 @@
-# Module: ERP
+# ERP Module
 
-> Loaded automatically when a Jira ticket matches ERP domain keywords.
-> This file overrides default routing and provides ERP-specific exploration context.
-
----
-
-## Affected Repos
-
-Start from this list, then narrow to only repos the ticket actually touches:
-
-| Repo Key | Scope in ERP |
-|----------|-------------|
-| Backend | ERP API endpoints, Frappe/ERPNext integration, doctype sync, OCR processing, bank reconciliation logic, journal entries |
-| Frontend | ERP UI screens, purchase/sales order forms, invoice views, bank reconciliation UI, document upload/scan UI |
-| AI Server | OCR document parsing, GST/GSTIN enrichment, AI-assisted data extraction from scanned documents |
-| Cron Jobs | Scheduled sync with ERPNext, periodic bank statement fetch, period closing automation |
-
-> Notifications and AI Cron Server are rarely needed for ERP tickets — include only if the ticket explicitly involves alerts or AI-scheduled jobs.
+> Read this before touching any finance-related code across any repo.
+> For implementation details, follow the repo-level spec pointers in Section 7.
 
 ---
 
-## Routing Guide
+## 1. What This Module Is
 
-Use this to narrow the ACTIVE REPO SET beyond what the default routing would suggest:
+PossibleWorks embeds Frappe/ERPNext as its finance and operations layer. Users interact with ERP entirely inside PossibleWorks — forms, approvals, document scanning, and master creation all happen within the PW single screen. Frappe is the data store and business logic engine. PossibleWorks is the UI and workflow layer on top of it.
 
-| Ticket involves... | Repos needed |
-|--------------------|-------------|
-| Creating/editing a doctype form (PO, SO, Invoice, etc.) | Frontend + Backend |
-| Syncing a doctype to/from ERPNext | Backend only |
-| OCR scan + data extraction | AI Server + Backend |
-| GST/GSTIN enrichment | AI Server + Backend |
-| Bank reconciliation (matching entries) | Backend + Frontend |
-| Bank transaction import | Backend + Cron Jobs |
-| Period closing | Backend + Cron Jobs |
-| Payment flow (entry, request, order) | Backend + Frontend |
-| Expense claim | Backend + Frontend |
+Every ERP form is a constant config file — one file per doctype — that declares all fields, calculations, mappings, and triggers. The engine components are generic and never change per doctype. Adding a new doctype means writing one new config file, nothing else.
 
 ---
 
-## Exploration Checklist (replaces default STEP 3c checklist for ERP tickets)
+## 2. Data Flow
 
-For each repo in the ACTIVE REPO SET, run this ERP-specific checklist:
+```
+PW Frontend  ──────────────────────→  Frappe REST API    (all form CRUD, direct)
+                                            │
+                                            │  webhook on every doc state change
+                                            ↓
+                                      pw-server-v3        (approval tiles, permissions)
 
-### Backend
-- [ ] Read `CLAUDE.md` — ERP conventions, Frappe client usage, forbidden patterns
-- [ ] Find the existing ERPNext integration layer: `src/erp/` or `src/integrations/frappe/`
-- [ ] Read the relevant doctype handler: e.g. `PurchaseOrderService.ts`, `InvoiceService.ts`
-- [ ] Read the Frappe client wrapper to understand how API calls to ERPNext are structured
-- [ ] Read the Prisma schema — find models that mirror ERPNext doctypes (e.g. `PurchaseOrder`, `SalesOrder`)
-- [ ] Check if the doctype already has a sync job or webhook handler
-- [ ] Find where document status transitions are handled (submitted, cancelled, amended)
-- [ ] Check OCR pipeline if ticket involves scanning: `src/ocr/` or `src/services/OcrService.ts`
-- [ ] Check GST enrichment service if ticket involves GSTIN: `src/services/GstService.ts`
-- [ ] Find bank reconciliation logic if relevant: `src/services/BankReconciliationService.ts`
+PW Frontend  ──────────────────────→  pw-ai-server       (OCR scan, master enrich)
+pw-ai-server ──────────────────────→  Frappe REST API    (master lookups during OCR)
+```
 
-### Frontend
-- [ ] Read `CLAUDE.md` — ERP UI conventions, component rules
-- [ ] Find existing ERP screens: `src/pages/erp/` or `src/components/erp/`
-- [ ] Read the nearest similar doctype form (e.g. if PO → read existing SO form as reference)
-- [ ] Check shared ERP form components: field renderers, status badges, action buttons
-- [ ] Check how document attachments/uploads are handled (for OCR/scan tickets)
-- [ ] Read `src/constants/erp-utils.ts` or equivalent for doctype constants
-- [ ] Check routing: where ERP routes are registered
-
-### AI Server
-- [ ] Read `CLAUDE.md`
-- [ ] Find OCR service: parsing pipeline, supported document types
-- [ ] Find GSTIN lookup/enrichment flow
-- [ ] Read how extracted data is returned to Backend (API shape, confidence scores)
-
-### Cron Jobs
-- [ ] Read `CLAUDE.md`
-- [ ] Find existing ERPNext sync jobs
-- [ ] Read how job scheduling and retry logic works
-- [ ] Check bank statement fetch job if relevant
+- Frontend talks to Frappe directly for all form operations — pw-server-v3 is not in that path
+- Frappe notifies pw-server-v3 via webhook on every document state change
+- Frontend calls pw-ai-server for OCR and supplier/customer enrichment
+- pw-ai-server calls Frappe independently to ground master data during scan
 
 ---
 
-## Key Concepts & Constraints
+## 3. Repo Responsibilities
 
-- **Frappe/ERPNext** is the ERP system. All doctype data flows through the Frappe REST API.
-- **Doctypes** are ERPNext entities (Purchase Order, Sales Invoice, etc.). Each has a lifecycle: Draft → Submitted → Cancelled.
-- **Sync direction**: ERPNext is the source of truth for financials. The PW backend mirrors data into Prisma for fast querying.
-- **OCR flow**: Scanned document → AI Server extracts fields → Backend validates → creates/updates ERPNext doctype
-- **GST/GSTIN**: GSTIN enrichment fetches business info from government APIs. Cache results — don't call on every request.
-- **Bank Reconciliation**: Match bank transactions (from statement import) against journal entries in ERPNext.
-- **Period Closing**: Month-end/year-end process that locks accounting periods. Requires careful ordering of operations.
-- **Never hard-delete** financial documents — always cancel/amend through ERPNext's lifecycle.
-- **Multi-company**: ERPNext supports multiple companies. Always pass `company` context in API calls.
+**Frontend (`pw-react-client-v3`)**
+Owns the entire form layer — the config-driven engine, all ERP screens, OCR scan UI, chat workflow tiles, and inline master creation. All Frappe calls originate here.
 
----
+Involved when: form UI changes, new doctype config, OCR flow, downstream mapping, master picker, chat tile display.
 
-## Common Patterns to Follow
+**Backend (`pw-server-v3`)**
+Two things only: returns per-user doctype permissions to the frontend, and receives Frappe webhooks to create and resolve approval tiles in PW chat. The same code path runs whether the user acts from PW or directly from Frappe UI.
 
-When the ticket is [EXTENSION]:
-- Extend the existing doctype service rather than creating a new one
-- Use the existing Frappe client wrapper — never call Frappe REST directly from new code
-- Follow the existing sync pattern (fetch → upsert Prisma → return)
+Involved when: webhook handling, approval tile creation/resolution, doctype permission checks.
 
-When the ticket is [NEW FEATURE]:
-- Reference pattern: look at an existing similar doctype implementation end-to-end
-- New Backend service: `src/services/erp/<DocType>Service.ts`
-- New Frontend screen: `src/pages/erp/<doctype>/index.tsx`
-- Register new route in the ERP router, not the main app router
+**AI Server (`pw-ai-server`)**
+Two things only: OCR scan pipeline (PDF/image + doctype → AI agent → structured ERP JSON streamed via SSE), and master enrich (GSTIN + website → pre-filled Supplier or Customer payload).
+
+Involved when: OCR pipeline changes, new doctype scan support, supplier/customer enrich flow.
 
 ---
 
-## Additional Clarification Questions for STEP 3.6 (ERP-specific)
+## 4. Finance Modules & Doctypes
 
-Always ask these for ERP tickets, in addition to the standard questions:
+| Module              | Status     | Doctypes                                                                                                                             |
+| ------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Accounts Payable    | ✅ Live    | Material Request, Request for Quotation, Supplier Quotation, Purchase Order, Purchase Receipt, Landed Cost Voucher, Purchase Invoice |
+| Payments            | ✅ Live    | Payment Entry, Payment Request, Payment Order                                                                                        |
+| Accounts Receivable | 🔲 Planned | Quotation, Sales Order, Delivery Note, Sales Invoice                                                                                 |
+| Cash & Bank         | 🔲 Planned | Bank Transaction, Bank Reconciliation Tool, Payment Reconciliation                                                                   |
+| Expenses            | 🔲 Planned | Expense Claim                                                                                                                        |
+| GL & Period-End     | 🔲 Planned | Journal Entry, Period Closing Voucher                                                                                                |
 
-1. Should this sync bidirectionally (PW ↔ ERPNext) or unidirectionally?
-2. Should the document be created in ERPNext as Draft or Submitted?
-3. Is there an existing ERPNext doctype for this, or does it need a custom doctype?
-4. Should changes trigger a real-time socket update to the frontend, or is a page refresh acceptable?
-5. Are there multi-company considerations — does this need to work across all companies or just one?
+---
+
+## 5. Document Chain
+
+Documents chain into each other. A submitted doc becomes a chat tile, and from that tile the user can create the next document in the chain — which opens pre-filled.
+
+AP buy cycle example:
+
+```
+Material Request → Request for Quotation → Supplier Quotation
+  → Purchase Order → Purchase Receipt → Purchase Invoice → Payment Entry
+```
+
+Two mechanisms drive chaining:
+
+- **Get Items From** — user pulls line items from a previous doc into the current form
+- **Downstream mapping** — after submission, the chat tile offers to create the next doc with fields pre-mapped
+
+---
+
+## 6. Key User Flows
+
+**Create a document** — user picks a module and doctype, form opens from the config, user fills and submits, Frappe saves and fires a webhook, pw-server-v3 creates an approval tile in chat for the correct approver.
+
+**Scan a document** — user uploads a file or uses camera, frontend sends it to pw-ai-server, the AI agent runs Frappe-grounded tools and streams phases back via SSE, on complete the form opens pre-filled, unmatched masters appear as "Create?" chips.
+
+**Approve a document** — approver sees a tile in chat, clicks Approve/Reject, pw-server-v3 calls Frappe apply_workflow, Frappe fires on_update, pw-server-v3 resolves the tile and creates the next one if the workflow has more levels.
+
+**Enrich a master** — user enters GSTIN or website in the master picker, pw-ai-server fetches GST registry data and scrapes the website in parallel, returns a pre-filled Supplier or Customer payload.
+
+---
+
+## 7. Repo-Level Specs
+
+For implementation details — file maps, component behaviour, config keys, pipeline steps — read the spec for the affected repo:
+
+| Repo      | Spec                                                                          |
+| --------- | ----------------------------------------------------------------------------- |
+| Frontend  | `/Users/mohdamankhan/Desktop/Possibleworks/pw-react-client-v3/.claude/ERP.md` |
+| Backend   | `/Users/mohdamankhan/Desktop/Possibleworks/pw-server-v3/.claude/ERP.md`       |
+| AI Server | `/Users/mohdamankhan/Desktop/Possibleworks/pw-ai-server/.claude/ERP.md`       |
+
+---
+
+## 8. Trigger Keywords _(jira-prd routing)_
+
+purchase order, sales order, invoice, supplier, customer, payment entry, payment request, payment order, journal entry, quotation, delivery note, purchase receipt, landed cost voucher, expense claim, material request, request for quotation, supplier quotation, frappe, erpnext, doctype, OCR, scan, GST, GSTIN, enrich, bank reconciliation, bank transaction, period closing
+
+---
+
+## 9. Routing Guide _(jira-prd routing)_
+
+Use this to narrow the ACTIVE REPO SET for the specific ticket — don't default to all three repos unless the ticket genuinely spans all three.
+
+| Ticket type                                                   | Repos                          |
+| ------------------------------------------------------------- | ------------------------------ |
+| New doctype config, form UI change, field layout, child table | Frontend                       |
+| OCR pipeline change, new doctype scan support                 | AI Server + Frontend           |
+| Supplier / customer enrich flow                               | AI Server + Frontend           |
+| Webhook handling, approval tile creation/resolution           | Backend                        |
+| Doctype permission check or user role access                  | Backend                        |
+| End-to-end feature (form + approval flow)                     | Frontend + Backend             |
+| End-to-end feature with scan                                  | Frontend + Backend + AI Server |
