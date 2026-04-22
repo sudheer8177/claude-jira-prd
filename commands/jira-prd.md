@@ -768,7 +768,7 @@ Then ask:
 > **Does this plan look correct?**
 > Reply with changes/additions — or say **"looks good"** to start coding.
 
-⛔ STOP HERE — this is the ONLY point where you wait for user input. Do not write any code until the user approves.
+⛔ STOP HERE — do not write any code until the user approves the plan. (Other stops: STEP 3.6 for clarification questions, STEP 7d for Prisma migration confirmation.)
 
 ---
 
@@ -777,7 +777,7 @@ Then ask:
 If the user requests changes, update the plan and show it again.
 Repeat until they say **"looks good"** / **"approved"** / **"yes"** / **"proceed"**.
 
-✅ Once approved — immediately and automatically proceed through STEPS 6 → 7 → 7.5 → 8 → 9 → 10 → 11 without pausing or asking for confirmation (the only pause is 11d — Dockerfile UI confirmation inside the coolify-deploy skill).
+✅ Once approved — immediately and automatically proceed through STEPS 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 without pausing or asking for confirmation (the only pause is inside the coolify-deploy skill — Dockerfile location UI step).
 
 ---
 
@@ -825,9 +825,21 @@ git checkout -b feat/<ticket-id>-<slug>
 
 🚀 AUTO — do not stop or ask for confirmation. Execute immediately.
 
+### 7a — Pre-coding setup (run BEFORE writing any code)
+
+For EACH affected repo, do this before touching a single file:
+
+1. **Re-read CLAUDE.md** — treat it as the active ruleset during writing. The conventions read in STEP 3 may have faded from context. Read it again now.
+2. **If assumptions were made** (user skipped STEP 3.6) — list them again here before writing code so they stay visible during the coding phase.
+
+---
+
+### 7b — Coding rules
+
 For each affected repo, implement exactly what the approved plan says:
 
-- Read every file before editing — never edit blindly
+- **Read every file fully before editing** — when extending an existing file, note its existing method signatures, return types, and imports. Never add a method whose return type or parameter shape conflicts with existing patterns.
+- **For NEW FILE repos** — re-read the reference feature file it mirrors immediately before writing the new file. The new file must follow the same structure line-for-line.
 - Follow the repo's CLAUDE.md conventions strictly
 - Never use raw MUI — use PWButton, PWTypography, PWIcon (Frontend)
 - Always register socket.off() for every socket.on() (Frontend/Backend)
@@ -835,18 +847,171 @@ For each affected repo, implement exactly what the approved plan says:
 - No refactoring beyond what the plan says
 - Cross-repo payloads must match exactly — if Backend sends `{ endDate: string }`, Frontend must read `endDate`
 
-After all changes in a repo, type-check:
-- **Frontend**: `npx tsc -b` in `pw-react-client-v3` — fix ALL errors before proceeding
-- **Backend**: check its CLAUDE.md for the type-check command — fix ALL errors
-- **Others**: verify no syntax errors
+---
+
+### 7c — Per-file type-check (run after EACH file, not at the end)
+
+After writing or editing each individual file — immediately run:
+```bash
+npx tsc -b --noEmit
+```
+Fix all errors before moving to the next file. Do NOT accumulate errors across files.
 
 ---
 
-## STEP 7.5 — Code Review (Mandatory — do not skip)
+### 7d — Prisma migration (schema changes only)
+
+⛔ MANDATORY STOP — if `prisma/schema.prisma` was modified, do NOT proceed automatically.
+
+Display:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Prisma schema was changed.
+  Migration will create a new SQL migration file and
+  apply it to the dev database.
+
+  Schema changes:
+  - <model name>: <what was added/changed>
+
+  Run migration now?
+  Reply "yes" to run  →  npx prisma migrate dev --name feat-<ticket-id>-<slug>
+  Reply "no" to skip  →  migration will need to be run manually before deploy
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+⛔ WAIT for user reply before running migration.
+
+If user replies **"yes"**:
+```bash
+cd /Users/sudheer7781/Documents/pw-server-v3
+npx prisma migrate dev --name feat-<ticket-id>-<slug>
+npx prisma generate
+```
+Then commit the generated migration file along with schema.prisma.
+
+If user replies **"no"** — note it in the PR description under a "Manual Steps" section.
+
+---
+
+### 7e — Integration wiring verification (NEW FEATURE repos only)
+
+After writing all new feature files — grep to confirm every integration point is actually wired:
+
+```bash
+# Backend — confirm route is registered
+grep -rn "<new-route-name>" src/app.ts src/routes/
+
+# Backend — confirm socket event emitter is registered
+grep -rn "<NEW_SOCKET_EVENT>" src/gateways/
+
+# Frontend — confirm EVENTNAMES_ENUM entry exists
+grep -n "<NEW_EVENT>" src/models/enums/event-names-enum.ts
+
+# Frontend — confirm CARD_EVENTS entry exists
+grep -n "<new_card_event>" src/constants/utils.ts
+
+# Frontend — confirm socket handler is registered
+grep -n "<NewFeature>" src/components/molecules/SingleScreen/Chat/hooks/useSocketEvents.ts
+
+# Frontend — confirm sidebar nav item added (if applicable)
+grep -n "<NewFeature>" src/components/organisms/Sidebar/
+```
+
+If ANY grep returns 0 results — the integration is missing. Fix it before proceeding. A feature that isn't wired in will silently not appear.
+
+---
+
+### 7f — Final type-check + ESLint per repo
+
+After ALL files in a repo are written and integration is verified:
+- **Frontend**: `npx tsc -b` in `pw-react-client-v3` — fix ALL errors
+- **Backend**: `yarn type-check` in `pw-server-v3` — fix ALL errors
+- **AI Server / Notifications / Cron repos**: `npx tsc --noEmit` — fix ALL errors
+
+Then run ESLint across every affected repo:
+```bash
+npx eslint src --ext .ts,.tsx --max-warnings 0
+```
+Fix ALL warnings. Zero tolerance — warnings become errors in CI.
+
+---
+
+## STEP 8 — Write Tests
 
 🚀 AUTO — do not stop or ask for confirmation. Execute immediately.
 
-After writing all code and passing type-check, perform a thorough self-review of every changed file before committing.
+For **each repo in the ACTIVE REPO SET**, invoke `/write-tests` passing that repo's path and the ticket ID:
+
+```
+/write-tests <repo-path> <TICKET-ID>
+```
+
+Examples (only run for repos that actually have code changes in this ticket):
+```
+/write-tests /Users/sudheer7781/Documents/pw-server-v3 <TICKET-ID>
+/write-tests /Users/sudheer7781/Documents/pw-react-client-v3 <TICKET-ID>
+```
+
+**The skill is scoped to the files changed for THIS feature in that repo** — it reads `git diff` to find only the files touched by this ticket's branch, then writes tests specifically for those changed methods, endpoints, socket events, and components. It does NOT write tests for the whole repo.
+
+The skill handles everything in one run per repo:
+1. Fetches ACs from Jira — sets the 90% coverage target
+2. Reads `git diff --name-only HEAD` — identifies only the files changed in this feature branch
+3. **Unit tests** — writes spec files for changed services/hooks/components; 3 tests per new method (happy/edge/error)
+4. **Functional tests** — always written using `node:test` + native `fetch` + `socket.io-client`; tests the new/changed endpoints and socket events end-to-end against the real server
+5. **Extends `pw-api.rest`** — appends entries for every new endpoint (manual re-test in VS Code)
+6. Runs all tests — 0 failures required before continuing
+7. Reports coverage per AC — if < 90% and automatable, writes missing tests
+
+**Gate:** Coverage must reach ≥ 90% before proceeding to STEP 9 (Code Review).
+Use the coverage report output to populate `## Testing` in the PR body (STEP 11).
+
+### 8a — Post test results to Jira
+
+🚀 AUTO — immediately after all `/write-tests` runs complete.
+
+Using the coverage report from each repo, post a single comment on the Jira ticket:
+
+```
+Tool: mcp__claude_ai_Atlassian__addCommentToJiraIssue
+issueIdOrKey: "<TICKET-ID>"
+```
+
+Comment body (use this exact format):
+
+```
+🧪 *Test Coverage Report — <TICKET-ID>*
+
+*Acceptance Criteria Coverage:*
+• AC-1: ✅ Automated — <test file path>:<line> — "<test description>"
+• AC-2: ✅ Automated — <test file path>:<line> — "<test description>"
+• AC-3: 🖐 Manual only — <reason: browser-only / live Frappe required / etc.>
+[one line per AC — every AC must appear here]
+
+*Unit Tests:*
+• <repo-short>: `<test file path>` — <N> tests written — ✅ <N> passed  ❌ 0 failed
+
+*Functional Tests:*
+• <repo-short>: `<test file path>` — <N> tests written — ✅ <N> passed  ❌ 0 failed
+  (or ⚠️ server not running — run: cd <repo> && yarn dev, then: node --test <file>)
+
+*Overall Coverage:* <X> / <N> ACs automated = <XX>%  [target ≥ 90%]
+
+*Test Files Written:*
+• `<repo>/<test file path>`
+• `<repo>/<test file path>`
+• `pw-api.rest` — <N> new entries added for manual re-testing in VS Code
+```
+
+---
+
+## STEP 9 — Code Review (Mandatory — do not skip)
+
+🚀 AUTO — do not stop or ask for confirmation. Execute immediately.
+
+After writing all code and passing type-check + ESLint, perform a thorough self-review of every changed file before committing.
+
+### How to read every changed file
 
 For each repo with changes, run:
 ```bash
@@ -854,16 +1019,44 @@ cd <repo-path>
 git status                  # see all new + modified files
 git diff                    # unstaged changes to tracked files
 git diff --cached           # staged changes
-# new (untracked) files: read them directly with the Read tool
 ```
 
-Review each diff against these criteria:
+**IMPORTANT: `git diff` does NOT show new (untracked) files.**
+For every new file created with the Write tool — use the Read tool to read it directly. It will not appear in any git diff output. New files must be reviewed the same as modified ones.
+
+---
+
+### Cross-repo contract verification (mandatory when BE + FE both changed)
+
+For every socket event or API endpoint that crosses repos — show them side by side:
+
+```
+Socket event: <event_name>
+
+  Backend emits (exact code):
+    socket.emit('<event_name>', {
+      field1: value1,   // type: string
+      field2: value2,   // type: number
+    })
+
+  Frontend consumes (exact code):
+    socket.on('<event_name>', (data: { field1: string; field2: number }) => {
+
+  Match: ✅ field names identical | ✅ types compatible | ✅ no missing fields
+```
+
+If field names differ by even one character (e.g. `endDate` vs `end_date`) — fix before committing. This is the #1 source of silent runtime bugs.
+
+---
+
+### Review checklist
 
 **Correctness:**
 - [ ] Does the code fully implement every AC from the ticket?
 - [ ] Are all edge cases handled (null/undefined, empty arrays, loading states, error states)?
-- [ ] Are socket payloads shaped correctly and matching what the other repo sends/expects?
+- [ ] Are socket payloads verified to match (cross-repo contract above)?
 - [ ] Are async operations awaited correctly? No unhandled promise rejections?
+- [ ] Were all assumptions from the plan actually implemented correctly?
 
 **Conventions (per CLAUDE.md):**
 - [ ] Frontend: No raw MUI — only PWButton, PWTypography, PWIcon atoms used?
@@ -885,6 +1078,8 @@ Review each diff against these criteria:
 - [ ] No hardcoded strings that should be constants?
 - [ ] No new files created when an existing file should have been edited?
 - [ ] Code is minimal — no over-engineering, no unused variables?
+- [ ] ESLint passed with 0 warnings?
+- [ ] tsc passed with 0 errors?
 
 **If any issue is found** — fix it immediately before committing. Do not note it and move on.
 
@@ -908,7 +1103,7 @@ Display a review summary:
 
 ---
 
-## STEP 8 — Commit and Push
+## STEP 10 — Commit and Push
 
 🚀 AUTO — do not stop or ask for confirmation. Execute immediately.
 
@@ -927,7 +1122,7 @@ git push -u origin feat/<ticket-id>-<slug>
 
 ---
 
-## STEP 9 — Raise PRs
+## STEP 11 — Raise PRs
 
 🚀 AUTO — do not stop or ask for confirmation. Execute immediately.
 
@@ -959,16 +1154,22 @@ For each repo use `gh pr create` targeting the correct dev branch:
 - [ ] <AC 1>
 - [ ] <AC 2>
 
-## Test Plan
-- [ ] <manual step 1>
-- [ ] <manual step 2>
+## Testing
+<!-- If test framework exists: paste test results summary here -->
+<!-- If no test framework: list specific manual steps to verify each AC -->
+- [ ] <specific action to verify AC 1 — e.g. "Open chat → approve leave → confirm card shows APPROVED badge">
+- [ ] <specific action to verify AC 2>
+
+## Automated Tests
+<!-- "X unit tests added" OR "No test framework in this repo — manual plan above" -->
+<test-result>
 
 🤖 Generated with [Claude Code](https://claude.ai/claude-code)
 ```
 
 ---
 
-## STEP 10 — Final Summary (before Coolify deploy)
+## STEP 12 — Final Summary (before Coolify deploy)
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -999,7 +1200,7 @@ For each repo use `gh pr create` targeting the correct dev branch:
 
 ---
 
-## STEP 11 — Coolify Preview Deployment
+## STEP 13 — Coolify Preview Deployment
 
 🚀 AUTO — run immediately after PRs are raised. Deploy ALL repos that were actually changed.
 
@@ -1022,7 +1223,7 @@ The skill:
 
 ---
 
-## STEP 12 — Update Jira Ticket with Deployment Info
+## STEP 14 — Update Jira Ticket with Deployment Info
 
 🚀 AUTO — run immediately after Coolify deploy completes. Do not stop or ask for confirmation.
 
@@ -1052,6 +1253,12 @@ Comment body (use this exact format):
 • Frontend: <frontend-pr-url>
 • Backend: <backend-pr-url>
 [include only the repos that have PRs]
+
+*Test Coverage:* <X> / <N> ACs automated = <XX>%
+• AC-1: ✅ <test file> — "<test name>"
+• AC-2: ✅ <test file> — "<test name>"
+• AC-3: 🖐 Manual — <reason>
+[copy from STEP 8a comment — every AC must appear]
 
 *Status:* ✅ Deployed and running on Coolify dev environment
 ```
@@ -1085,26 +1292,37 @@ After posting the comment, display the final end-to-end summary:
 
 ## HARD RULES
 
-- **There are TWO mandatory stops**: STEP 3.6 (clarification questions) and STEP 4 (plan approval) — everything else runs automatically
+- **There are THREE mandatory stops**: STEP 3.6 (clarification questions), STEP 4 (plan approval), and STEP 7d (Prisma migration yes/no) — everything else runs automatically
 - **STEP 3.6 is non-negotiable** — always ask clarification questions before generating the plan, minimum 3 questions, every time
 - **STEP 3.5 is mandatory** — ticket enhancement and sub-task creation must happen before questions and plan, every time
 - If user says "skip" at STEP 3.6 — list assumptions at the top of the plan and continue
-- Once the plan is approved, execute STEPS 6 → 7 → 7.5 → 8 → 9 → 10 → 11 → 12 in one continuous run
+- Once the plan is approved, execute STEPS 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 in one continuous run
 - Never write code before plan is approved
 - Plan must be based on actual file reads — never guess file paths
 - **Reusability is mandatory** — always complete STEP 3d before writing the plan; the plan must reflect what is reused vs what is new
 - **Plan must be optimized** — minimum files, minimum new code, maximum reuse; every planned change must satisfy at least one AC
 - Never create a new component, hook, service, event, or endpoint if an existing one can be extended to meet the requirement
+- **Re-read CLAUDE.md before writing code in each repo** — conventions must be active in context at write time, not just at exploration time
+- **Read files fully before editing** — always check existing method signatures, return types, and imports before adding to a file
+- **For NEW FILE repos — re-read the reference feature file immediately before writing the new file**
+- **Per-file tsc after each file (STEP 7c)** — run `npx tsc -b --noEmit` after each individual file; fix errors before the next file
+- **Prisma migration requires explicit user confirmation (STEP 7d)** — never run `prisma migrate dev` automatically; always stop and ask yes/no
+- **Integration wiring grep check (STEP 7e)** — for new features, always grep to confirm routes, events, and handlers are registered
+- **ESLint zero warnings (STEP 7f)** — run `npx eslint src --ext .ts,.tsx --max-warnings 0` before STEP 8; fix everything
+- **Tests are mandatory (STEP 8)** — `/write-tests` must run for every affected repo; ≥ 90% AC coverage required before STEP 9
+- **If no test framework exists** — add a specific manual test plan to the PR body; never leave the Testing section empty
+- **Cross-repo contract side-by-side (STEP 9)** — always show exact emit vs consume code for every socket event/API response; field names must match character for character
+- **New (untracked) files must be reviewed via Read tool (STEP 9)** — `git diff` does not show new files; they must be read explicitly
 - Never use `git add .` or `git add -A` — always stage specific files
 - Never force push
 - Never skip type-check before committing
-- Never skip the code review (STEP 7.5) — it is mandatory
+- Never skip the code review (STEP 9) — it is mandatory
 - Never commit .env or secret files
 - If push is rejected — investigate, do not force
-- Cross-repo payloads (socket events, API responses) must be verified to match on both ends before committing
+- Cross-repo payloads (socket events, API responses) must be verified side-by-side before committing
 - **Coolify — NEVER touch prod (`os4ok8oco488gg4c8s8kgc4k`) or UAT (`qoocsssso88g0ooss0ggkco8`) environments** — dev only (`tscgoggowo8cwwgko4gooo4k`)
 - **Coolify — NEVER restart or redeploy** `FRONTEND_PARENT` (`qosws0k84g44kkcooo08owgo`) or `BACKEND_PARENT` (`m4wkosg48c0okgw4coos80wo`)
 - **Coolify — always use `create_github`**, never `create_public` (private repos need GitHub App auth)
 - **Coolify — always deploy backend before frontend** when both are affected (frontend needs backend FQDN for env vars)
-- **Coolify — never set `dockerfile_location` via API** (known bug) — always ask user to set it in the UI (step 11d)
+- **Coolify — never set `dockerfile_location` via API** (known bug) — always ask user to set it in the UI during STEP 13
 - **Coolify — never retry a failed deploy automatically** — report the error and ask the user how to proceed
