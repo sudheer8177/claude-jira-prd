@@ -12,16 +12,26 @@ Extract the ticket ID from the input (works with bare ID like `PW-123` or full J
 
 ---
 
-## REPOS
+## REPOS REGISTRY
 
-| Repo | Path | GitHub | Dev Branch |
-|------|------|--------|------------|
+| Key | Local Path | GitHub | Dev Branch |
+|-----|------------|--------|------------|
 | Frontend | `/Users/sudheer7781/Documents/pw-react-client-v3` | `PossibleWorks/pw-react-client-v3` | `dev` |
 | Backend | `/Users/sudheer7781/Documents/pw-server-v3` | `PossibleWorks/pw-server-v3` | `coolify-dev-v3` |
 | AI Server | `/Users/sudheer7781/Documents/pw-ai-server` | `PossibleWorks/pw-ai-server` | `dev` |
 | Notifications | `/Users/sudheer7781/Documents/pw-notifications` | `PossibleWorks/pw-notifications` | `notif_dev` |
 | AI Cron Server | `/Users/sudheer7781/Documents/ai-cron-server` | `PossibleWorks/ai-cron-server` | `dev` |
 | Cron Jobs | `/Users/sudheer7781/Documents/pw-cron-jobs` | `PossibleWorks/pw-cron-jobs` | `jobs_dev` |
+
+## MODULES REGISTRY
+
+Modules are domain-specific spec files that override default routing and provide deep context for a feature area. Each module file lives at `.claude/modules/<name>.md`.
+
+| Module | Trigger Keywords | Module File |
+|--------|-----------------|-------------|
+| ERP | purchase order, sales order, invoice, supplier, customer, payment entry, payment request, payment order, journal entry, quotation, delivery note, purchase receipt, landed cost voucher, expense claim, material request, request for quotation, supplier quotation, frappe, erpnext, doctype, OCR, scan, GST, GSTIN, bank reconciliation, bank transaction, period closing | `.claude/modules/erp.md` |
+
+_(More modules will be added here as they are created)_
 
 ---
 
@@ -190,35 +200,61 @@ Display a design summary. If no Figma links → skip and note "No designs attach
 ----
 
 
-## STEP 3 — Route to Repos + Deep Codebase Exploration
+## STEP 3 — Module Detection, Routing + Deep Codebase Exploration
 
-### 3a — Route
+### 3a — Module Detection
 
-Read the ticket summary, description, and AC. Decide which repos are affected:
+Scan the ticket summary, description, and AC for keywords from the MODULES REGISTRY.
 
-**Routing rules:**
+If a match is found — **immediately read that module file** before doing anything else. It contains repo responsibilities, routing overrides, spec pointers, and domain-specific exploration checklists that replace the defaults for Steps 3b and 3c.
+
+Display:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Module: ERP  (matched: "purchase order")
+  Loaded: .claude/modules/erp.md ✅
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+or:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Module: none  (using default routing)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+### 3b — Repo Routing
+
+**If a module was detected:** Start from the module file's `Affected Repos` list, then narrow based on what the ticket actually requires. The module may list 3 repos but the ticket may only touch 1 — only include repos whose work is genuinely required.
+
+**Default routing (no module):**
 - UI changes, new screens, components, chat cards → **Frontend**
 - API endpoints, socket events, DB/Prisma, services → **Backend**
 - AI prompts, LLM logic, embeddings, agent flows → **AI Server**
-- Push notifications, email notifications, in-app alerts → **Notifications**
+- Push notifications, email, in-app alerts → **Notifications**
 - Scheduled AI jobs, initiative/goal automation → **AI Cron Server**
 - Scheduled data jobs, reports, cron triggers → **Cron Jobs**
 - A feature can affect multiple repos — include all that apply
 
-Display routing result:
+Resolve each selected Key against the REPOS REGISTRY. The result is the **ACTIVE REPO SET** — the confirmed list of repos (Key + local path + GitHub repo + dev branch) that drives all downstream steps.
+
+Display:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Repos affected:
-  ✅ Frontend        (pw-react-client-v3)
-  ✅ Backend         (pw-server-v3)
-  ⬜ AI Server       (not needed)
-  ⬜ Notifications   (not needed)
-  ⬜ AI Cron Server  (not needed)
-  ⬜ Cron Jobs       (not needed)
+  ✅ Frontend    → /Users/.../pw-react-client-v3   (dev)
+  ✅ Backend     → /Users/.../pw-server-v3          (coolify-dev-v3)
+  ⬜ AI Server      (not needed)
+  ⬜ Notifications  (not needed)
+  ⬜ AI Cron Server (not needed)
+  ⬜ Cron Jobs      (not needed)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-### 3b — Deep Codebase Exploration (ALL affected repos)
+---
+
+### 3c — Deep Codebase Exploration (ALL repos in the ACTIVE REPO SET)
 
 For EVERY affected repo, perform thorough exploration BEFORE writing the plan. This is mandatory — do not skip.
 
@@ -298,9 +334,10 @@ Display exploration summary — label each repo clearly:
 
 ---
 
-### 3c — Reusability & Pattern Analysis (Mandatory — do not skip)
+### 3d — Reusability & Pattern Analysis (Mandatory — do not skip)
 
-Run the matching analysis for each repo based on its label from STEP 3b.
+Run the matching analysis for each repo based on its label from STEP 3c.
+If a module was loaded, follow any additional analysis rules it specifies.
 
 ---
 
@@ -610,7 +647,7 @@ my best assumptions (assumptions will be listed in the plan).
 - For new features: list integration points explicitly (where new code plugs into existing app shell)
 - Call out explicitly when something is intentionally NOT changing and why
 
-Using everything learned in STEPS 3b and 3c, generate a concrete plan with exact file paths (confirmed by exploration, not guessed):
+Using everything learned in STEPS 3c and 3d (and the module file if loaded), generate a concrete plan with exact file paths (confirmed by exploration, not guessed):
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1053,7 +1090,7 @@ After posting the comment, display the final end-to-end summary:
 - Once the plan is approved, execute STEPS 6 → 7 → 7.5 → 8 → 9 → 10 → 11 → 12 in one continuous run
 - Never write code before plan is approved
 - Plan must be based on actual file reads — never guess file paths
-- **Reusability is mandatory** — always complete STEP 3c before writing the plan; the plan must reflect what is reused vs what is new
+- **Reusability is mandatory** — always complete STEP 3d before writing the plan; the plan must reflect what is reused vs what is new
 - **Plan must be optimized** — minimum files, minimum new code, maximum reuse; every planned change must satisfy at least one AC
 - Never create a new component, hook, service, event, or endpoint if an existing one can be extended to meet the requirement
 - Never use `git add .` or `git add -A` — always stage specific files
