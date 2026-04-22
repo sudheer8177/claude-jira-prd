@@ -1,7 +1,7 @@
 ---
 description: Jira ticket → Claude router → plan → code → review → PR → Coolify preview
 argument-hint: <TICKET-ID or Jira URL>  e.g. PW-123 or https://possibleworks.atlassian.net/browse/PW-123
-allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent, mcp__claude_ai_Atlassian__getJiraIssue, mcp__claude_ai_Atlassian__fetch, mcp__claude_ai_Atlassian__addCommentToJiraIssue, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_screenshot
+allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent, mcp__claude_ai_Atlassian__getJiraIssue, mcp__claude_ai_Atlassian__fetch, mcp__claude_ai_Atlassian__addCommentToJiraIssue, mcp__claude_ai_Atlassian__editJiraIssue, mcp__claude_ai_Atlassian__createJiraIssue, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_screenshot
 ---
 
 You are the Claude router for PossibleWorks engineering.
@@ -307,6 +307,128 @@ Display a reusability report:
   - Do NOT create a new hook — extend useInitiativeSocket
 ─────────────────────────────────────────────────────────
 ```
+
+---
+
+## STEP 3.5 — Enhance Jira Ticket + Create Sub-tasks
+
+🚀 AUTO — run immediately after STEP 3. Do not stop or ask for confirmation.
+
+This is the most important step for keeping Jira as the source of truth. Using everything learned from STEPS 1, 2, and 3, enrich the ticket and break it into sub-tasks so any engineer can pick it up with full context.
+
+---
+
+### 3.5a — Edit the ticket description
+
+```
+Tool: mcp__claude_ai_Atlassian__editJiraIssue
+issueIdOrKey: "<TICKET-ID>"
+```
+
+Update the `description` field. The enhanced description must contain two parts:
+
+**Part 1 — Original content preserved exactly:**
+Do not alter, shorten, or reword anything the reporter wrote. Keep the original description and AC verbatim.
+
+**Part 2 — Technical Context block (appended after original, clearly separated):**
+
+```
+---
+🤖 Technical Context (added by Claude after codebase analysis)
+
+Repos affected:
+- Backend (pw-server-v3): <why affected — which domain, which service>
+- Frontend (pw-react-client-v3): <why affected — which component/screen>
+- <other repos if applicable>
+
+Key files to change:
+- <repo>: <confirmed file path> — <EXTEND | NEW> — <what changes>
+- <repo>: <confirmed file path> — <EXTEND | NEW> — <what changes>
+
+Cross-repo contracts:
+- Socket event: <event_name> [NEW | EXTENDED] — payload: { field: type, ... }
+- API endpoint: <METHOD /path> [NEW | EXTENDED] — request/response shape
+
+Reuse opportunities found:
+- <existing component/hook/service that handles part of this>
+- <existing event/endpoint that can be extended instead of duplicated>
+
+Schema changes required:
+- <model>: add field <name>: <type> (default: <value>) — or "None"
+
+Additional ACs discovered during exploration:
+- <any AC not in the original ticket that the codebase reveals is needed>
+- <e.g. "Must call socket.off() cleanup for the new event handler">
+```
+
+---
+
+### 3.5b — Create sub-tasks (one per affected repo)
+
+For each repo that is affected, create a sub-task linked to the parent ticket.
+
+```
+Tool: mcp__claude_ai_Atlassian__createJiraIssue
+```
+
+Required fields per sub-task:
+- `issueType`: `Sub-task`
+- `project`: same project as parent ticket
+- `parent`: `<TICKET-ID>`
+- `summary`: `[<REPO-SHORT>] <parent ticket summary>`
+  - Repo short names: `BE`, `FE`, `AI`, `NOTIF`, `AI-CRON`, `CRON`
+  - Example: `[BE] PW-123: Replace initiatives with tasks`
+- `description`: full technical breakdown for that repo:
+
+```
+Scope for <Repo Name> (pw-<repo>)
+
+Branch: feat/<ticket-id>-<slug>  (from <dev-branch>)
+
+Files to change:
+1. <confirmed file path>  [EXTEND]
+   - <exactly what to add: method name, params, return type, socket event>
+   - AC covered: <which parent AC>
+
+2. <confirmed file path>  [NEW FILE]
+   - <what this file does and why it's needed>
+   - AC covered: <which parent AC>
+
+Dependencies:
+- Depends on: <other sub-task ID or "none"> — <reason>
+- Required by: <other sub-task ID or "none"> — <reason>
+
+Cross-repo contract this sub-task owns:
+- <socket event / API endpoint this repo is responsible for emitting/exposing>
+- Payload: { field: type }
+
+Definition of done:
+- [ ] <specific testable outcome 1>
+- [ ] <specific testable outcome 2>
+- [ ] Type-check passes (npx tsc -b)
+```
+
+Create all sub-tasks before moving to STEP 4.
+
+---
+
+### 3.5c — Confirm and display
+
+After enhancing the ticket and creating sub-tasks, display:
+
+```
+─── Jira Ticket Enhanced ────────────────────────────────
+  ✅ Ticket <ID> description updated with technical context
+  ✅ Sub-tasks created:
+     └─ <SUB-ID>: [BE] <summary>
+     └─ <SUB-ID>: [FE] <summary>
+     └─ <SUB-ID>: [AI] <summary>  (if applicable)
+     └─ <SUB-ID>: [NOTIF] <summary>  (if applicable)
+  Jira: https://possibleworks.atlassian.net/browse/<TICKET-ID>
+─────────────────────────────────────────────────────────
+```
+
+Proceed immediately to STEP 4 — do not wait for user input.
 
 ---
 
@@ -728,8 +850,9 @@ After posting the comment, display the final end-to-end summary:
 
 ## HARD RULES
 
-- **STEP 4 is the ONLY full stop** — all other steps run automatically without pausing, except STEP 11d (Dockerfile UI — mandatory user confirmation)
-- Once the plan is approved, execute STEPS 6 → 7 → 7.5 → 8 → 9 → 10 → 11 → 12 in one continuous run (pausing only at 11d for UI confirmation)
+- **STEP 4 is the ONLY full stop** — all other steps run automatically without pausing
+- **STEP 3.5 is mandatory** — ticket enhancement and sub-task creation must happen before the plan, every time, no exceptions
+- Once the plan is approved, execute STEPS 6 → 7 → 7.5 → 8 → 9 → 10 → 11 → 12 in one continuous run
 - Never write code before plan is approved
 - Plan must be based on actual file reads — never guess file paths
 - **Reusability is mandatory** — always complete STEP 3c before writing the plan; the plan must reflect what is reused vs what is new
