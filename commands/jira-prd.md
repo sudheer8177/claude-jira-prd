@@ -428,13 +428,109 @@ After enhancing the ticket and creating sub-tasks, display:
 ─────────────────────────────────────────────────────────
 ```
 
-Proceed immediately to STEP 4 — do not wait for user input.
+Proceed immediately to STEP 3.6 — do not wait for user input.
+
+---
+
+## STEP 3.6 — Pre-Plan Clarification Questions
+
+⛔ MANDATORY STOP — ask questions before writing the plan. Do not skip this step even if the ticket seems clear.
+
+After reading the ticket, exploring the codebase, and enhancing Jira, you will always have ambiguities. Surface them now — a bad assumption here means bad code later.
+
+---
+
+### How to generate good questions
+
+Go through each category below. For every item where you are not 100% certain, add a question. Skip categories where you are genuinely confident.
+
+**Scope & boundaries:**
+- Is X included in this ticket or out of scope? (When the ticket says "replace initiatives with tasks" — does that mean delete the old initiative code or keep it behind a flag?)
+- Should the old behaviour/data be migrated or can it be dropped?
+- Are there related tickets that overlap with this one?
+
+**Design & UX:**
+- Figma designs are missing / incomplete for state X — how should it look?
+- The ticket mentions component Y but the design shows Z — which takes priority?
+- How should empty states, loading states, and error states look for this feature?
+
+**Business logic & edge cases:**
+- What happens when [edge case found in codebase]?
+- Should [condition] be validated on frontend, backend, or both?
+- What is the expected behaviour when a user has no permissions for this?
+
+**Technical approach (when two valid paths exist):**
+- The codebase has both [approach A] and [approach B] patterns for this — which should this feature follow?
+- Should this extend the existing `<socket_event>` payload or create a new event?
+- Should this be a new Prisma field or can we reuse `<existing_field>`?
+
+**Data & API:**
+- What data does the frontend need that isn't already returned by the existing endpoint?
+- Should deleted/archived items be included or excluded from this feature?
+- Is pagination required for this list?
+
+**Cross-repo contracts:**
+- Is the payload shape for `<event>` finalised, or is there flexibility?
+- Does the notification need to be sent in real-time (socket) or is a poll acceptable?
+
+---
+
+### Format
+
+Display questions like this — group by category, number them:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Clarification needed before planning
+  <TICKET-ID> — <Summary>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Scope
+  1. The ticket says "replace initiatives with tasks" — should the existing
+     Initiative model and all related API endpoints be removed, or kept for
+     backward compatibility during this sprint?
+
+  2. Does this include migrating existing initiative data to tasks, or only
+     new data going forward?
+
+Design / UX
+  3. The Figma shows a "Tasks" tab on the sidebar but no empty state design.
+     Should the empty state match the existing Initiatives empty state, or
+     is there a new design coming?
+
+Business Logic
+  4. When a task is deleted, should it be soft-deleted (archived) or hard-
+     deleted? The existing Initiative model uses soft-delete.
+
+Technical Approach
+  5. The codebase has two patterns for list updates — socket broadcast and
+     REST polling. Which should the task list use?
+
+─────────────────────────────────────────────────────────
+Answer any/all of the above, or say "skip" to proceed with
+my best assumptions (assumptions will be listed in the plan).
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+### Rules for this step
+
+- **Minimum 3 questions, maximum 8** — if you genuinely have fewer than 3, you have not explored deeply enough. If you have more than 8, group or prioritise.
+- Every question must be **specific and actionable** — no vague "can you clarify the requirements?" style questions
+- Every question must come from a **concrete finding** — a gap in the ticket, an ambiguity in the Figma, a fork in the codebase, a missing edge case
+- If the user says **"skip"** or **"proceed"** — list your best assumptions at the top of the plan and continue
+- Do NOT generate the plan until you receive answers (or an explicit skip)
+
+⛔ WAIT for user response before proceeding to STEP 4.
 
 ---
 
 ## STEP 4 — Generate Implementation Plan
 
 **Plan quality rules — apply before writing:**
+- Incorporate every answer from STEP 3.6 — the plan must reflect what was clarified
+- If user skipped STEP 3.6 — list assumptions at the very top of the plan before anything else
 - Every file path must be confirmed from STEP 3 exploration — no guesses
 - Every item in the plan must map directly to an AC — if it doesn't satisfy an AC, it shouldn't be in the plan
 - Prefer extending existing files over creating new ones
@@ -850,8 +946,10 @@ After posting the comment, display the final end-to-end summary:
 
 ## HARD RULES
 
-- **STEP 4 is the ONLY full stop** — all other steps run automatically without pausing
-- **STEP 3.5 is mandatory** — ticket enhancement and sub-task creation must happen before the plan, every time, no exceptions
+- **There are TWO mandatory stops**: STEP 3.6 (clarification questions) and STEP 4 (plan approval) — everything else runs automatically
+- **STEP 3.6 is non-negotiable** — always ask clarification questions before generating the plan, minimum 3 questions, every time
+- **STEP 3.5 is mandatory** — ticket enhancement and sub-task creation must happen before questions and plan, every time
+- If user says "skip" at STEP 3.6 — list assumptions at the top of the plan and continue
 - Once the plan is approved, execute STEPS 6 → 7 → 7.5 → 8 → 9 → 10 → 11 → 12 in one continuous run
 - Never write code before plan is approved
 - Plan must be based on actual file reads — never guess file paths
