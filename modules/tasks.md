@@ -85,7 +85,6 @@ Involved when: on-demand AI task suggestions, task auto-generation from user inp
 | Due Dates | ✅ Live | Set and track task due dates |
 | Chat Tile | ✅ Live | Task appears as a card in the PW single screen chat |
 | Socket Real-time | ✅ Live | All changes broadcast instantly to connected users |
-| Comments | ✅ Live | Threaded comments on each task |
 | Attachments | ✅ Live | File attachments on tasks |
 | Notifications | ✅ Live | Push + in-app alerts for assignments and due dates |
 | Expired Task Recreation | ✅ Live | pw-cron-jobs recreates expired tasks as new records |
@@ -101,8 +100,6 @@ Involved when: on-demand AI task suggestions, task auto-generation from user inp
 **Update task status** — user clicks the status badge on the task tile, selects a new status (todo / in-progress / done / cancelled). Backend updates the record, emits `task_update` socket event, triggers a notification to the assignee if relevant.
 
 **Assign a task** — user picks an assignee from the assignee picker. Backend updates the assignee field, emits `task_update`, sends an assignment notification to the newly assigned user.
-
-**Comment on a task** — user opens the task detail view, types a comment (optionally @mentioning a teammate). Backend saves the comment, emits `task_comment` socket event, sends a mention notification if applicable.
 
 **Expired task recreation** — pw-cron-jobs runs on a schedule, detects tasks whose due date has passed, and recreates them as new task records via pw-server-v3 API. The new task is a copy of the expired one, assigned to the same user, so it resurfaces in their task list.
 
