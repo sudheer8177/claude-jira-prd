@@ -222,89 +222,159 @@ Display routing result:
 
 For EVERY affected repo, perform thorough exploration BEFORE writing the plan. This is mandatory — do not skip.
 
-For each affected repo:
+**First: determine the feature type for each repo.**
 
-1. **Read CLAUDE.md** at root or `.claude/CLAUDE.md` — understand conventions, patterns, forbidden patterns
-2. **Search for related existing code** — grep for keywords from the ticket (feature name, entity name, domain terms) to find where similar logic already lives
-3. **Read relevant existing files** — if the ticket touches e.g. "initiatives", read the existing initiative files (service, controller, component, socket handlers, types)
-4. **Understand the data model** — if backend is affected, read the Prisma schema or relevant DB models
-5. **Understand existing socket events** — if socket events are involved, read `src/models/enums/event-names-enum.ts` (Frontend) and the backend socket handler files
-6. **Find cross-repo contracts** — identify API endpoints, socket event names, request/response shapes that must match between repos
-7. **Check for existing patterns** — how are similar features implemented? Follow the same pattern exactly.
+Grep for the core domain terms from the ticket (entity name, feature name, screen name) across the repo:
 
-Exploration checklist per repo (run all that are relevant):
-- `Glob("**/*.ts", repo_path)` + keyword grep to find relevant files
-- Read the entity's service file (Backend)
-- Read the entity's controller/router file (Backend)
-- Read the entity's Prisma model (Backend)
-- Read the existing component folder (Frontend)
-- Read `src/constants/utils.ts` (Frontend) — CARD_EVENTS, ACTION_STATUS
-- Read `src/models/enums/event-names-enum.ts` (Frontend) — EVENTNAMES_ENUM
-- Read `src/components/molecules/SingleScreen/Chat/hooks/useSocketEvents.ts` (Frontend) — existing socket handlers
-- Read the existing chat card for the nearest similar feature as a reference implementation
+```bash
+grep -r "<domain-term>" <repo-path>/src --include="*.ts" --include="*.tsx" -l
+```
 
-Display a brief exploration summary:
+- **Files found** → **EXTENSION** mode — existing code will be extended
+- **No files found** → **NEW FEATURE** mode — building from scratch, follow patterns
+
+Label each repo as `[EXTENSION]` or `[NEW FEATURE]` and run the matching exploration path below.
+
+---
+
+#### Path A — EXTENSION (existing code found)
+
+1. **Read CLAUDE.md** — conventions, patterns, forbidden patterns
+2. **Read all related existing files** — service, controller, component, socket handlers, types for this domain
+3. **Read the Prisma schema** — understand the existing model and relations
+4. **Read socket event enums** — `src/models/enums/event-names-enum.ts` (FE), backend socket handlers
+5. **Find cross-repo contracts** — existing API endpoints, socket event names and shapes
+6. **Identify exactly what needs to change** — which methods to add, which fields to add, which components to extend
+
+---
+
+#### Path B — NEW FEATURE (no existing code found)
+
+1. **Read CLAUDE.md** — understand file structure rules, naming conventions, forbidden patterns
+2. **Find the reference feature** — identify the most similar existing feature in the codebase and read it completely:
+   - Backend: read its service, controller, router, Prisma model, socket emitter
+   - Frontend: read its component folder, hook, socket handler, card component, type definitions
+   - This reference feature IS the template — the new feature must follow the exact same structure
+3. **Read the Prisma schema** — understand existing models and relations the new feature will relate to
+4. **Read socket event enums** — to understand naming conventions for new events
+5. **Read `src/constants/utils.ts`** — to understand CARD_EVENTS and ACTION_STATUS naming patterns
+6. **Map out the full new file structure** needed:
+   - Backend: new service file, new controller file, new router file, new Prisma model, socket emit points
+   - Frontend: new component folder structure, new hook, new type file, new EVENTNAMES_ENUM entries, new CARD_EVENTS entries, new chat card
+7. **Identify all integration points** — where the new feature plugs into existing code (route registration, socket gateway, sidebar nav, etc.)
+
+---
+
+Exploration checklist (run all relevant):
+- `Glob("**/*.ts", repo_path)` + keyword grep to find (or confirm absence of) existing code
+- Read CLAUDE.md
+- Read the entity's service / controller / Prisma model (Extension: the entity itself | New: the reference feature)
+- Read `src/constants/utils.ts` — CARD_EVENTS, ACTION_STATUS
+- Read `src/models/enums/event-names-enum.ts` — EVENTNAMES_ENUM
+- Read `src/components/molecules/SingleScreen/Chat/hooks/useSocketEvents.ts`
+- Read the nearest similar feature's chat card (both Extension and New Feature)
+
+Display exploration summary — label each repo clearly:
+
 ```
 ─── Codebase Exploration ────────────────────────────────
-  Backend:
-  - Found: src/services/InitiativeService.ts (existing logic)
+  Backend: [EXTENSION]
+  - Found: src/services/InitiativeService.ts
   - Found: src/controllers/InitiativeController.ts
-  - Prisma model: Initiative (fields: id, title, endDate, ...)
-  - Existing socket events: initiative_update, initiative_create
+  - Prisma model: Initiative { id, title, endDate, ... }
+  - Socket events: initiative_update, initiative_create
+  - Will extend: InitiativeService + add 1 new method
 
-  Frontend:
-  - Found: src/components/molecules/InitiativeCard/index.tsx
-  - EVENTNAMES_ENUM already has: INITIATIVE_UPDATE
-  - CARD_EVENTS already has: initiative_update
-  - useSocketEvents.ts: handles initiative_update at line 142
-  - Reference card: ApplyLeaveCard (closest pattern match)
+  Frontend: [NEW FEATURE]
+  - No existing "Task" component/hook/event found
+  - Reference pattern: LeaveRequest feature
+    └─ src/components/molecules/LeaveRequestCard/index.tsx
+    └─ src/hooks/useLeaveRequest.ts
+    └─ EVENTNAMES_ENUM.LEAVE_REQUEST_UPDATE
+  - New files needed: TaskCard/, useTask.ts, task.types.ts
+  - Integration points: sidebar nav, useSocketEvents.ts, CARD_EVENTS
 ─────────────────────────────────────────────────────────
 ```
 
 ---
 
-### 3c — Reusability Analysis (Mandatory — do not skip)
+### 3c — Reusability & Pattern Analysis (Mandatory — do not skip)
 
-Before writing the plan, explicitly audit every part of the feature for reuse opportunities. The goal is **zero unnecessary new code** — extend, compose, and reuse first.
+Run the matching analysis for each repo based on its label from STEP 3b.
 
-For each affected repo, answer these questions by reading the actual code:
+---
+
+#### For [EXTENSION] repos — Reusability audit
+
+Goal: **zero unnecessary new code** — extend, compose, reuse first.
 
 **Backend:**
-- Is there an existing service method that does the same or similar query? → reuse/extend it, don't duplicate
-- Is there an existing middleware, guard, or util already solving auth/validation needed here?
-- Does the Prisma schema already have the field/relation needed, or does it truly need a new field?
-- Is there an existing socket emitter helper or broadcast pattern? → use it
-- Can the new endpoint share a route file with a related controller, or does it need a new file?
+- Existing service method that does the same query? → reuse/extend, don't duplicate
+- Existing middleware/guard/util for auth or validation needed here?
+- Prisma schema already has the field/relation? → reuse, else add minimal new field
+- Existing socket emitter helper or broadcast pattern? → use it
+- Can new endpoint share a route file with a related controller?
 
 **Frontend:**
-- Is there an existing component (atom, molecule) that already renders this UI pattern? → reuse it
-- Is there an existing hook that fetches/manages this data? → extend it, don't create a new one
-- Is there an existing utility function in `src/constants/utils.ts` or `src/utils/` that handles the logic? → call it
-- Does the same socket event already exist in `EVENTNAMES_ENUM`? → do NOT add a duplicate
-- Does the same card action already exist in `CARD_EVENTS`? → do NOT add a duplicate
-- Can the new feature be added to an existing component as a prop/variant rather than a new component?
+- Existing component (atom/molecule) that renders this UI pattern? → reuse it
+- Existing hook that fetches/manages this data? → extend, don't create new
+- Existing utility in `src/constants/utils.ts` or `src/utils/`? → call it
+- Same socket event already in `EVENTNAMES_ENUM`? → do NOT duplicate
+- Same card action already in `CARD_EVENTS`? → do NOT duplicate
+- New feature addable to existing component as a prop/variant?
 
 **Cross-repo:**
-- Is there an existing socket event that carries the needed data but is just missing a field? → add the field to the existing event rather than creating a new event
-- Is there an existing API endpoint that returns adjacent data? → extend the response shape rather than a new endpoint
+- Existing socket event missing just one field? → add the field, don't create a new event
+- Existing API endpoint returns adjacent data? → extend response shape, don't add endpoint
 
-Display a reusability report:
+---
+
+#### For [NEW FEATURE] repos — Pattern mapping
+
+Goal: **mirror the reference feature's structure exactly** — new feature must feel native to the codebase.
+
+**Backend pattern map** (read from reference feature):
+- Service file location and naming: `src/services/<Entity>Service.ts`
+- Controller file location: `src/controllers/<Entity>Controller.ts`
+- Router registration point: where to add the new router in the app entry
+- Prisma model conventions: naming, required fields, soft-delete pattern, tenant relations
+- Socket emit pattern: which gateway class to use, how events are emitted, room/namespace
+
+**Frontend pattern map** (read from reference feature):
+- Component folder structure: `src/components/molecules/<Feature>/index.tsx` + sub-components
+- Hook naming and location: `src/hooks/use<Feature>.ts`
+- Type file location: `src/types/<feature>.types.ts` or co-located
+- EVENTNAMES_ENUM naming convention: `<ENTITY>_<ACTION>` pattern
+- CARD_EVENTS naming convention: `<entity>_<action>` snake_case
+- Chat card structure: how props flow, how socket data maps to card state
+- Socket handler registration: where and how in `useSocketEvents.ts`
+
+**Integration points** (where new code plugs into existing):
+- Backend: route file registration, socket gateway, middleware chain
+- Frontend: sidebar nav item, `useSocketEvents.ts` handler block, `CARD_EVENTS` entry
+
+---
+
+Display a unified report for both repo types:
+
 ```
-─── Reusability Analysis ────────────────────────────────
-  ♻️  REUSE (no new code needed):
-  - Backend: InitiativeService.getById() → reuse directly, add 1 field to select
-  - Frontend: PWStatusBadge component → reuse for status display
-  - Frontend: EVENTNAMES_ENUM.INITIATIVE_UPDATE already exists → no new enum entry
-  - Frontend: useInitiativeSocket hook exists → extend, not replace
+─── Analysis ────────────────────────────────────────────
+  Backend: [EXTENSION]
+  ♻️  REUSE: InitiativeService.getById() — add 1 select field
+  ♻️  REUSE: existing broadcast helper in SocketGateway
+  🆕  NEW:   InitiativeService.updateEndDate() — no existing method
+  🆕  NEW:   Prisma field resolvedAt: DateTime? on Initiative
+  ⚠️  AVOID: do NOT new socket event — extend initiative_update
 
-  🆕  NEW (genuinely required):
-  - Backend: new method InitiativeService.updateEndDate() — no existing method covers this
-  - Frontend: new EndDatePicker sub-component — no existing date picker fits this layout
-  - DB: new optional field `resolvedAt` on Initiative — not present in schema
-
-  ⚠️  AVOID (would be duplication/over-engineering):
-  - Do NOT create a new socket event — extend existing initiative_update payload
-  - Do NOT create a new hook — extend useInitiativeSocket
+  Frontend: [NEW FEATURE]
+  📐 PATTERN: mirrors LeaveRequest feature structure
+  🆕  NEW FILE: src/components/molecules/TaskCard/index.tsx
+  🆕  NEW FILE: src/hooks/useTask.ts
+  🆕  NEW FILE: src/types/task.types.ts
+  🆕  ENUM:    EVENTNAMES_ENUM.TASK_CREATE, TASK_UPDATE
+  🆕  CONST:   CARD_EVENTS.task_create, task_update
+  ♻️  REUSE:  PWStatusBadge, PWButton, PWTypography atoms
+  🔌 PLUG IN: sidebar nav, useSocketEvents.ts, CARD_EVENTS map
 ─────────────────────────────────────────────────────────
 ```
 
@@ -533,11 +603,11 @@ my best assumptions (assumptions will be listed in the plan).
 - If user skipped STEP 3.6 — list assumptions at the very top of the plan before anything else
 - Every file path must be confirmed from STEP 3 exploration — no guesses
 - Every item in the plan must map directly to an AC — if it doesn't satisfy an AC, it shouldn't be in the plan
-- Prefer extending existing files over creating new ones
-- Prefer reusing existing components, hooks, services over writing new ones (per reusability analysis)
-- Prefer adding a field to an existing event/endpoint over creating a new one
+- **[EXTENSION] repos**: prefer extending existing files; never duplicate logic that already exists
+- **[NEW FEATURE] repos**: every new file must mirror the reference feature's structure; note which reference file it follows
 - The plan must be the minimum viable set of changes to satisfy all ACs — nothing more
-- Sort changes within each repo from lowest to highest risk (schema changes last)
+- Sort changes within each repo: safest first, schema/model changes last
+- For new features: list integration points explicitly (where new code plugs into existing app shell)
 - Call out explicitly when something is intentionally NOT changing and why
 
 Using everything learned in STEPS 3b and 3c, generate a concrete plan with exact file paths (confirmed by exploration, not guessed):
@@ -554,6 +624,28 @@ Branches:  [only list repos that are actually affected]
   Notifications   → feat/<ticket-id>-<slug>  (from notif_dev)     [if affected]
   AI Cron Server  → feat/<ticket-id>-<slug>  (from dev)           [if affected]
   Cron Jobs       → feat/<ticket-id>-<slug>  (from jobs_dev)      [if affected]
+
+─── Feature Type ────────────────────────────────────────
+  Backend:  [EXTENSION | NEW FEATURE]
+  Frontend: [EXTENSION | NEW FEATURE]
+  <other repos if applicable>
+
+─── Assumptions (if user skipped STEP 3.6) ──────────────
+  - <assumption 1 and what it affects>
+  - <assumption 2> — or "None (all questions answered)"
+
+─── New Feature: Reference Pattern ──────────────────────
+  (include this section only if any repo is [NEW FEATURE])
+  Backend reference:  src/services/<RefFeature>Service.ts
+  Frontend reference: src/components/molecules/<RefFeature>/
+  New file structure:
+    BE: src/services/<NewFeature>Service.ts
+        src/controllers/<NewFeature>Controller.ts
+        src/routes/<newFeature>.routes.ts
+    FE: src/components/molecules/<NewFeature>/index.tsx
+        src/components/molecules/<NewFeature>/<Sub>.tsx
+        src/hooks/use<NewFeature>.ts
+        src/types/<newFeature>.types.ts
 
 ─── Reuse Summary ────────────────────────────────────────
   ♻️  Reusing (no new code):
@@ -572,17 +664,21 @@ Branches:  [only list repos that are actually affected]
 
 ─── Backend Changes (pw-server-v3) ──────────────────────
   [ordered: safest changes first, schema changes last]
-1. <confirmed file path>  [EXTEND | NEW FILE]
+1. <confirmed file path>  [EXTEND | NEW FILE — mirrors: <reference file>]
    - AC coverage: <which AC this satisfies>
    - <exactly what to add/change — method name, params, return shape>
    - Reuse: <what existing code is called internally>
 2. prisma/schema.prisma  [only if schema change truly required]
-   - <field/model/relation — name, type, default, nullable>
+   - <model name, fields, relations, defaults>
+...
+N. Integration points:  [NEW FEATURE only]
+   - Register route: <file where router is mounted> — add 1 line
+   - Socket gateway: <file> — register new event emitter
 ...
 
 ─── Frontend Changes (pw-react-client-v3) ───────────────
   [ordered: safest changes first]
-1. <confirmed file path>  [EXTEND | NEW FILE]
+1. <confirmed file path>  [EXTEND | NEW FILE — mirrors: <reference file>]
    - AC coverage: <which AC this satisfies>
    - <exactly what to add/change — prop, state, handler, render>
    - Reuse: <existing atom/hook/util being used>
@@ -592,6 +688,10 @@ Branches:  [only list repos that are actually affected]
    - Add: <NEW_KEY: 'Label'>
 4. src/components/molecules/SingleScreen/Chat/hooks/useSocketEvents.ts
    - Register handler for <event>  [only if new socket handler needed]
+N. Integration points:  [NEW FEATURE only]
+   - Sidebar nav: <file> — add nav item for new feature
+   - CARD_EVENTS: <file> — register new card event key
+   - App router: <file> — add route for new screen (if applicable)
 ...
 
 ─── Notifications Changes (pw-notifications) ────────────
