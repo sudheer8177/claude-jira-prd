@@ -30,6 +30,7 @@ Modules are domain-specific spec files that override default routing and provide
 | Module | Trigger Keywords | Module File |
 |--------|-----------------|-------------|
 | ERP | purchase order, sales order, invoice, supplier, customer, payment entry, payment request, payment order, journal entry, quotation, delivery note, purchase receipt, landed cost voucher, expense claim, material request, request for quotation, supplier quotation, frappe, erpnext, doctype, OCR, scan, GST, GSTIN, bank reconciliation, bank transaction, period closing | `.claude/modules/erp.md` |
+| Tasks | task, tasks, task card, task tile, task status, task list, task detail, create task, update task, delete task, assign task, assignee, task assignee, due date, task due date, overdue, task priority, priority, task comment, task attachment, task notification, task reminder, task board, task management, todo, in-progress, done, cancelled, PW-2252, replace initiatives, task filter, task sort | `.claude/modules/tasks.md` |
 
 _(More modules will be added here as they are created)_
 
