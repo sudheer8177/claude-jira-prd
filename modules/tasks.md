@@ -26,13 +26,16 @@ pw-server-v3 ──────────────────────�
 
 PW Frontend  ──────────────────────→  pw-ai-server        (on-demand AI task suggestions)
 
-ai-cron-server ────────────────────→  pw-server-v3        (scheduled task health / reminders)
+ai-cron-server ────────────────────→  pw-server-v3        (AI-extracted tasks from Teams/Outlook/GChat/Gmail)
+
+pw-cron-jobs ──────────────────────→  pw-server-v3        (overdue checks, due date reminders, stale task flags)
 ```
 
 - Frontend talks to pw-server-v3 for all task CRUD (REST) and receives real-time updates via socket
 - pw-server-v3 broadcasts socket events to all users in the relevant room on any state change
 - Status changes and assignments trigger notifications via pw-notifications
-- ai-cron-server runs scheduled jobs for due date reminders and task health checks
+- ai-cron-server connects to Teams, Outlook, GChat, and Gmail — extracts actionable tasks using AI and creates them via pw-server-v3 API
+- pw-cron-jobs runs scheduled jobs for due date reminders, overdue detection, and stale task flagging
 - pw-ai-server handles on-demand AI suggestions (suggest task breakdown, auto-fill details)
 
 ---
@@ -55,9 +58,14 @@ Sends push and in-app notifications for task events: new assignments, due date r
 Involved when: new notification type for a task event, changes to existing task notification templates, notification trigger conditions.
 
 **AI Cron Server (`ai-cron-server`)**
-Runs scheduled jobs that call pw-server-v3 API to: check overdue tasks, send due date reminders, and flag stale tasks. Does not own any Prisma models — calls Backend REST API only.
+Runs AI-powered scheduled jobs to extract tasks from connected communication channels — Microsoft Teams, Outlook emails, Google Chat, and Gmail. Parses messages/emails using AI to detect actionable items, creates tasks via pw-server-v3 REST API. Does not own any Prisma models.
 
-Involved when: new scheduled job for task reminders, overdue detection logic, any scheduled task update.
+Involved when: changes to email/chat task extraction logic, new channel support (Teams/Outlook/GChat/Gmail), AI parsing prompt changes, extraction schedule changes, any AI-driven task creation from external sources.
+
+**Cron Jobs (`pw-cron-jobs`)**
+Runs scheduled maintenance jobs that call pw-server-v3 API to: check overdue tasks, send due date reminders, and flag stale tasks. Does not own any Prisma models — calls Backend REST API only.
+
+Involved when: new scheduled job for task reminders, overdue detection logic, due date reminder schedule changes, any scheduled task status update.
 
 **AI Server (`pw-ai-server`)**
 Handles on-demand AI features: task breakdown suggestions, auto-fill from description, smart recommendations. Called directly by Frontend via REST.
@@ -96,7 +104,9 @@ Involved when: on-demand AI task suggestions, task auto-generation from user inp
 
 **Comment on a task** — user opens the task detail view, types a comment (optionally @mentioning a teammate). Backend saves the comment, emits `task_comment` socket event, sends a mention notification if applicable.
 
-**Due date reminder** — ai-cron-server runs daily, checks tasks with upcoming due dates, calls pw-server-v3 to get the list, triggers reminder notifications via pw-notifications for tasks due within the configured window.
+**Due date reminder** — pw-cron-jobs runs daily, checks tasks with upcoming due dates, calls pw-server-v3 to get the list, triggers reminder notifications via pw-notifications for tasks due within the configured window.
+
+**Email/chat task extraction** — ai-cron-server connects to Teams, Outlook, GChat, and Gmail on a schedule, uses AI to parse messages and emails for actionable items, and creates tasks via pw-server-v3 API. Users see new task tiles appear automatically from their communication channels.
 
 ---
 
@@ -105,7 +115,9 @@ Involved when: on-demand AI task suggestions, task auto-generation from user inp
 - **Tasks are standalone** — tasks have no parent goal, OKR, or initiative. They are first-class independent entities.
 - **Socket events are the source of truth for real-time UI** — Backend emits after every write. Frontend must register `socket.off()` cleanup for every `socket.on()` handler.
 - **Status transitions are open** — unlike initiatives, tasks allow flexible status movement (todo → done, in-progress → cancelled, etc.) without threshold checks.
-- **ai-cron-server only calls REST** — it has no direct DB access. All task mutations go through pw-server-v3 API endpoints.
+- **ai-cron-server and pw-cron-jobs only call REST** — neither has direct DB access. All task mutations go through pw-server-v3 API endpoints.
+- **ai-cron-server owns communication channel integrations** — Teams, Outlook, GChat, Gmail extraction logic lives here exclusively. Do not put scheduled reminder logic here.
+- **pw-cron-jobs owns scheduled maintenance** — due date reminders, overdue flags, stale task detection. Do not put AI/channel extraction logic here.
 - **Soft-delete only** — tasks are never hard-deleted. Use `deletedAt` timestamp. Deleted tasks must not appear in lists or socket broadcasts.
 - **CARD_EVENTS and EVENTNAMES_ENUM must stay in sync** — if a new socket event is added on Backend, the Frontend enum and card event map must be updated in the same PR.
 - **Notifications on assignment and mentions** — notify the assignee when a task is assigned or reassigned. Notify mentioned users in comments.
@@ -122,6 +134,7 @@ For implementation details — file maps, component structure, socket event list
 | Frontend | `/Users/sudheer7781/Documents/pw-react-client-v3/.claude/TASKS.md` |
 | Backend | `/Users/sudheer7781/Documents/pw-server-v3/.claude/TASKS.md` |
 | AI Cron Server | `/Users/sudheer7781/Documents/ai-cron-server/.claude/TASKS.md` |
+| Cron Jobs | `/Users/sudheer7781/Documents/pw-cron-jobs/.claude/TASKS.md` |
 | Notifications | `/Users/sudheer7781/Documents/pw-notifications/.claude/TASKS.md` |
 
 _(Create these spec files if they don't exist yet — one per repo, describing the file map and implementation details for that repo's task code)_
@@ -144,7 +157,8 @@ Use this to narrow the ACTIVE REPO SET for the specific ticket — don't include
 | New task field, API endpoint, Prisma model change | Backend |
 | Socket event change (new event or payload change) | Backend + Frontend |
 | New notification type for task event | Backend + Notifications |
-| Due date reminders, overdue detection, scheduled job | AI Cron Server + Backend |
+| Due date reminders, overdue detection, scheduled maintenance job | Cron Jobs + Backend |
+| Email/chat task extraction (Teams, Outlook, GChat, Gmail) | AI Cron Server + Backend |
 | On-demand AI feature (task suggestions, auto-fill) | AI Server + Frontend |
 | End-to-end feature (UI + API + socket) | Frontend + Backend |
 | End-to-end with notifications | Frontend + Backend + Notifications |
