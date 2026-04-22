@@ -28,7 +28,7 @@ PW Frontend  ──────────────────────�
 
 ai-cron-server ────────────────────→  pw-server-v3        (AI-extracted tasks from Teams/Outlook/GChat/Gmail)
 
-pw-cron-jobs ──────────────────────→  pw-server-v3        (overdue checks, due date reminders, stale task flags)
+pw-cron-jobs ──────────────────────→  pw-server-v3        (recreate expired tasks as new task records)
 ```
 
 - Frontend talks to pw-server-v3 for all task CRUD (REST) and receives real-time updates via socket
@@ -63,9 +63,9 @@ Runs AI-powered scheduled jobs to extract tasks from connected communication cha
 Involved when: changes to email/chat task extraction logic, new channel support (Teams/Outlook/GChat/Gmail), AI parsing prompt changes, extraction schedule changes, any AI-driven task creation from external sources.
 
 **Cron Jobs (`pw-cron-jobs`)**
-Runs scheduled maintenance jobs that call pw-server-v3 API to: check overdue tasks, send due date reminders, and flag stale tasks. Does not own any Prisma models — calls Backend REST API only.
+Runs one scheduled job for tasks: detects expired tasks and recreates them. When a task's due date passes, this job creates a fresh copy of the task so it reappears for the assignee. Does not own any Prisma models — calls Backend REST API only.
 
-Involved when: new scheduled job for task reminders, overdue detection logic, due date reminder schedule changes, any scheduled task status update.
+Involved when: changes to the expired task recreation logic, recreation schedule, or what fields are carried over to the new task.
 
 **AI Server (`pw-ai-server`)**
 Handles on-demand AI features: task breakdown suggestions, auto-fill from description, smart recommendations. Called directly by Frontend via REST.
@@ -88,7 +88,7 @@ Involved when: on-demand AI task suggestions, task auto-generation from user inp
 | Comments | ✅ Live | Threaded comments on each task |
 | Attachments | ✅ Live | File attachments on tasks |
 | Notifications | ✅ Live | Push + in-app alerts for assignments and due dates |
-| Due Date Reminders | ✅ Live | ai-cron-server sends reminders before due date |
+| Expired Task Recreation | ✅ Live | pw-cron-jobs recreates expired tasks as new records |
 | AI Task Suggestions | 🔲 Planned | On-demand task breakdown from pw-ai-server |
 | Recurring Tasks | 🔲 Planned | Schedule tasks to repeat on a cadence |
 
@@ -104,7 +104,7 @@ Involved when: on-demand AI task suggestions, task auto-generation from user inp
 
 **Comment on a task** — user opens the task detail view, types a comment (optionally @mentioning a teammate). Backend saves the comment, emits `task_comment` socket event, sends a mention notification if applicable.
 
-**Due date reminder** — pw-cron-jobs runs daily, checks tasks with upcoming due dates, calls pw-server-v3 to get the list, triggers reminder notifications via pw-notifications for tasks due within the configured window.
+**Expired task recreation** — pw-cron-jobs runs on a schedule, detects tasks whose due date has passed, and recreates them as new task records via pw-server-v3 API. The new task is a copy of the expired one, assigned to the same user, so it resurfaces in their task list.
 
 **Email/chat task extraction** — ai-cron-server connects to Teams, Outlook, GChat, and Gmail on a schedule, uses AI to parse messages and emails for actionable items, and creates tasks via pw-server-v3 API. Users see new task tiles appear automatically from their communication channels.
 
@@ -117,7 +117,7 @@ Involved when: on-demand AI task suggestions, task auto-generation from user inp
 - **Status transitions are open** — unlike initiatives, tasks allow flexible status movement (todo → done, in-progress → cancelled, etc.) without threshold checks.
 - **ai-cron-server and pw-cron-jobs only call REST** — neither has direct DB access. All task mutations go through pw-server-v3 API endpoints.
 - **ai-cron-server owns communication channel integrations** — Teams, Outlook, GChat, Gmail extraction logic lives here exclusively. Do not put scheduled reminder logic here.
-- **pw-cron-jobs owns scheduled maintenance** — due date reminders, overdue flags, stale task detection. Do not put AI/channel extraction logic here.
+- **pw-cron-jobs owns expired task recreation** — when a task expires, this job recreates it as a new task. Do not put AI/channel extraction logic here.
 - **Soft-delete only** — tasks are never hard-deleted. Use `deletedAt` timestamp. Deleted tasks must not appear in lists or socket broadcasts.
 - **CARD_EVENTS and EVENTNAMES_ENUM must stay in sync** — if a new socket event is added on Backend, the Frontend enum and card event map must be updated in the same PR.
 - **Notifications on assignment and mentions** — notify the assignee when a task is assigned or reassigned. Notify mentioned users in comments.
@@ -157,7 +157,7 @@ Use this to narrow the ACTIVE REPO SET for the specific ticket — don't include
 | New task field, API endpoint, Prisma model change | Backend |
 | Socket event change (new event or payload change) | Backend + Frontend |
 | New notification type for task event | Backend + Notifications |
-| Due date reminders, overdue detection, scheduled maintenance job | Cron Jobs + Backend |
+| Expired task recreation (recreate when due date passes) | Cron Jobs + Backend |
 | Email/chat task extraction (Teams, Outlook, GChat, Gmail) | AI Cron Server + Backend |
 | On-demand AI feature (task suggestions, auto-fill) | AI Server + Frontend |
 | End-to-end feature (UI + API + socket) | Frontend + Backend |
