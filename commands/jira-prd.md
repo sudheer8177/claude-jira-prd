@@ -100,22 +100,68 @@ Display:
 
 ### 1c — Fetch Attachments (screenshots, PDFs, docs)
 
-From the ticket's `attachment` field, collect every attachment. For each:
+From the ticket's `fields.attachment` array, collect every attachment.
 
-**Screenshots / images (PNG, JPG, GIF, WEBP):**
-- Use `mcp__claude_ai_Atlassian__fetch` to download and view the image
-- Describe what is shown: screen name, UI element highlighted, error state, layout issue, red annotations, arrows
-- If it is a bug screenshot — note exactly what looks wrong visually
-- Label it: `[Screenshot: <filename> — <what it shows>]`
+**IMPORTANT — How to fetch attachment content:**
 
-**PDFs:**
-- Use `mcp__claude_ai_Atlassian__fetch` to fetch the PDF URL
-- Read and summarise the content: requirements, flow diagrams, spec pages
-- Label it: `[PDF: <filename> — <summary of content>]`
+The `mcp__claude_ai_Atlassian__fetch` tool does NOT work for attachment download URLs.
+Instead, use authenticated `curl` via the Bash tool. Credentials are available as environment variables:
+- `$ATLASSIAN_EMAIL`
+- `$ATLASSIAN_API_TOKEN`
 
-**Other docs (DOCX, XLSX, TXT, CSV):**
-- Fetch and summarise relevant content
-- Label it: `[Doc: <filename> — <summary>]`
+The attachment content URL is in the `content` field of each attachment object.
+
+**For Screenshots / images (PNG, JPG, GIF, WEBP):**
+
+```bash
+curl -s -u "$ATLASSIAN_EMAIL:$ATLASSIAN_API_TOKEN" "<content_url>" -L -o /tmp/<filename>
+```
+Then use the Read tool to view `/tmp/<filename>` as an image.
+Describe what is shown: screen name, UI element highlighted, error state, layout issue, red annotations, arrows.
+If it is a bug screenshot — note exactly what looks wrong visually.
+Label it: `[Screenshot: <filename> — <what it shows>]`
+
+**For CSVs:**
+
+```bash
+curl -s -u "$ATLASSIAN_EMAIL:$ATLASSIAN_API_TOKEN" "<content_url>" -L
+```
+Read and summarise all rows/columns.
+Label it: `[CSV: <filename> — <summary>]`
+
+**For XLSX files:**
+
+```bash
+curl -s -u "$ATLASSIAN_EMAIL:$ATLASSIAN_API_TOKEN" "<content_url>" -L -o /tmp/<filename>
+pip3 install openpyxl -q
+python3 -c "
+import openpyxl
+wb = openpyxl.load_workbook('/tmp/<filename>')
+for sheet in wb.sheetnames:
+    ws = wb[sheet]
+    print(f'=== Sheet: {sheet} ===')
+    for row in ws.iter_rows(values_only=True):
+        if any(cell is not None for cell in row):
+            print(row)
+    print()
+"
+```
+Summarise all sheets and their content.
+Label it: `[XLSX: <filename> — <summary>]`
+
+**For PDFs:**
+
+```bash
+curl -s -u "$ATLASSIAN_EMAIL:$ATLASSIAN_API_TOKEN" "<content_url>" -L -o /tmp/<filename>
+```
+Then use the Read tool to read `/tmp/<filename>` as a PDF.
+Summarise the content: requirements, flow diagrams, spec pages.
+Label it: `[PDF: <filename> — <summary>]`
+
+**For other docs (DOCX, TXT):**
+
+Download via curl and read/summarise.
+Label it: `[Doc: <filename> — <summary>]`
 
 Display:
 ```
@@ -124,6 +170,12 @@ Display:
   Shows the initiative card in error state — red border
   visible, "Failed" badge overlapping the title text.
   Red arrow pointing to the badge. This is the bug to fix.
+
+  [CSV: finance-spec.csv]
+  Lists all 6 finance modules and their doctypes.
+
+  [XLSX: finance-spec.xlsx]
+  12 sheets covering AP/AR field specs, role access, and open bugs.
 
   [PDF: flow-spec.pdf]
   3-page spec describing the approval flow for leave requests.
