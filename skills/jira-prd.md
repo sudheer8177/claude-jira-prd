@@ -214,6 +214,16 @@ After fetching everything, produce a single consolidated understanding block:
 ─────────────────────────────────────────────────────
 ```
 
+> **Think Before Coding** — Before moving to the plan, explicitly list every assumption you are making about this ticket. Unresolved assumptions become Open Questions in the plan's Out of Scope. Never silently guess.
+
+```
+─── Assumption Audit ────────────────────────────────
+  Assuming: <e.g. "the existing AP socket event pattern is reused for AR">
+  Assuming: <e.g. "Sales Invoice outstanding amount comes from Frappe, not computed client-side">
+  Ambiguous: <anything the ticket does not clearly specify — flag it>
+─────────────────────────────────────────────────────
+```
+
 Do NOT stop here. Continue automatically to STEP 2.
 
 ---
@@ -369,12 +379,18 @@ Branches:
    - <what and why>
 ...
 
-─── Acceptance Criteria Coverage ────────────────────────
-✅ AC 1: <exactly how each AC is satisfied>
-✅ AC 2: <exactly how each AC is satisfied>
+─── Acceptance Criteria → Testable Outcomes ─────────────
+  AC 1: <text>
+    → Verified when: <concrete observable outcome — what you see/get when it works>
+  AC 2: <text>
+    → Verified when: <concrete observable outcome>
+
+─── Tradeoffs ────────────────────────────────────────────
+  <file or area>: chose <approach A> over <approach B> because <reason>
 
 ─── Out of Scope ─────────────────────────────────────────
 - <anything NOT being done and why>
+- <unresolved assumptions from Assumption Audit that need PM/designer input>
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -443,6 +459,17 @@ For each affected repo, implement exactly what the approved plan says:
 - No refactoring beyond what the plan says
 - Cross-repo payloads must match exactly — if Backend sends `{ endDate: string }`, Frontend must read `endDate`
 
+> **Simplicity First** — The best solution is the smallest one that satisfies the ACs.
+> - Prefer editing an existing file over creating a new one
+> - Do not create helpers, hooks, or components used in only one place
+> - Do not add configuration, feature flags, or fallbacks for scenarios that don't exist yet
+> - If you find yourself building something for hypothetical future use — delete it
+
+> **Surgical Changes** — Touch only what the plan lists. Nothing else.
+> - Do not clean up surrounding code, even if it looks messy
+> - Do not rename, reorder, or reformat anything outside your diff
+> - If you spot a pre-existing bug — add it to the PR description as "Observed but out of scope", do not fix it
+
 After all changes in a repo, type-check:
 - **Frontend**: `npx tsc -b` in `pw-react-client-v3` — fix ALL errors before proceeding
 - **Backend**: check its CLAUDE.md for the type-check command — fix ALL errors
@@ -462,11 +489,21 @@ git diff HEAD
 
 Review each diff against these criteria:
 
+**Goal-Driven Execution — AC verification (do this first):**
+- [ ] Go through every AC from the Testable Outcomes in the plan — mark each ✅ or ❌
+- [ ] For each ❌ — fix the gap before continuing. Do not commit with a failing AC
+- [ ] Every AC must be independently verifiable, not assumed correct because code was written
+
 **Correctness:**
 - [ ] Does the code fully implement every AC from the ticket?
 - [ ] Are all edge cases handled (null/undefined, empty arrays, loading states, error states)?
 - [ ] Are socket payloads shaped correctly and matching what the other repo sends/expects?
 - [ ] Are async operations awaited correctly? No unhandled promise rejections?
+
+**Surgical Changes — scope check:**
+- [ ] Does every changed file appear in the approved plan? If not — revert the extra change
+- [ ] Is any surrounding code refactored, cleaned up, or reformatted that wasn't in the plan? If yes — revert it
+- [ ] Are there any new files, helpers, or abstractions not required by the plan? If yes — delete them
 
 **Conventions (per CLAUDE.md):**
 - [ ] Frontend: No raw MUI — only PWButton, PWTypography, PWIcon atoms used?
@@ -476,11 +513,10 @@ Review each diff against these criteria:
 - [ ] No comments or docstrings added unless logic is non-obvious?
 - [ ] No console.log left in code?
 
-**Quality:**
-- [ ] No unnecessary re-renders or missing dependency arrays in useEffect?
-- [ ] No hardcoded strings that should be constants?
-- [ ] No new files created when an existing file should have been edited?
-- [ ] Code is minimal — no over-engineering, no unused variables?
+**Simplicity check:**
+- [ ] No new file created where an existing file could have been edited?
+- [ ] No helper/hook/component built for a single call-site?
+- [ ] No unused variables, dead code, or speculative logic?
 
 **If any issue is found** — fix it immediately before committing. Do not note it and move on.
 
