@@ -542,18 +542,76 @@ Display a review summary:
 
 ## STEP 8 — Commit and Push
 
-For each repo with changes:
+Run the block for each repo that is in the ACTIVE REPO SET. Skip repos not affected.
 
 ```bash
-# Stage only the changed files explicitly — never git add . or git add -A
-git add <specific files>
-
+# ── Frontend ──────────────────────────────────────────
+cd /Users/sudheer7781/Documents/pw-react-client-v3
+git add <list every changed file explicitly — no wildcards>
+git status                             # confirm only intended files staged
 git commit -m "feat(<ticket-id>): <concise description>
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
-
 git push -u origin feat/<ticket-id>-<slug>
+echo "✅ Frontend pushed"
+
+# ── Backend ───────────────────────────────────────────
+cd /Users/sudheer7781/Documents/pw-server-v3
+git add <list every changed file explicitly — no wildcards>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ Backend pushed"
+
+# ── AI Server (if affected) ───────────────────────────
+cd /Users/sudheer7781/Documents/pw-ai-server
+git add <list every changed file explicitly>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ AI Server pushed"
+
+# ── Notifications (if affected) ───────────────────────
+cd /Users/sudheer7781/Documents/pw-notifications
+git add <list every changed file explicitly>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ Notifications pushed"
+
+# ── AI Cron Server (if affected) ──────────────────────
+cd /Users/sudheer7781/Documents/ai-cron-server
+git add <list every changed file explicitly>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ AI Cron Server pushed"
+
+# ── Cron Jobs (if affected) ───────────────────────────
+cd /Users/sudheer7781/Documents/pw-cron-jobs
+git add <list every changed file explicitly>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ Cron Jobs pushed"
 ```
+
+**Push rules:**
+- Stage files explicitly by path — never `git add .` or `git add -A`
+- Run `git status` after staging and visually confirm only the intended files are staged before committing
+- Never force push — if push is rejected, investigate and report to user
+- Never commit `.env`, secret files, or generated files not in the plan
+- If a repo had no code changes, skip its block entirely — do not create an empty commit
 
 ---
 

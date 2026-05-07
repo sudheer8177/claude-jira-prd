@@ -10,6 +10,9 @@ The input is: $ARGUMENTS
 
 Extract the ticket ID from the input (works with bare ID like `PW-123` or full Jira URL).
 
+Also check `$ARGUMENTS` for flags:
+- `--no-subtasks` → skip STEP 3.5b (sub-task creation) but still run STEP 3.5a (description update). Note this at the start of STEP 3.5.
+
 ---
 
 ## REPOS REGISTRY
@@ -364,6 +367,18 @@ Exploration checklist (run all relevant):
 - Read `src/components/molecules/SingleScreen/Chat/hooks/useSocketEvents.ts`
 - Read the nearest similar feature's chat card (both Extension and New Feature)
 
+**Infrastructure reads (mandatory for every repo — do before planning):**
+- Read `package.json` at repo root — note available packages, scripts, engines. Never import a package that isn't listed here.
+- Read `.env.example` (if present) — copy env var names exactly. Never guess or invent var names.
+- Run `git log --oneline -5 -- <file>` on every file being extended — catch recent breaking changes before touching the file.
+- Read the existing test file for the reference/domain feature (if any) — understand test patterns before writing tests in STEP 8.
+
+**Consumer files + auth pattern reads (mandatory — prevents breaking callers and auth holes):**
+- For every file being EXTENDED: grep for its import across the repo (`grep -r "from.*<filename>" src/ -l`) and read 1-2 of those caller files. Note what interface they expect — adding params or changing return types must stay backward compatible.
+- Read the route registration file (e.g. `src/app.ts`, `src/routes/index.ts`) — understand how auth middleware is applied to existing routes. New routes must follow the exact same middleware chain.
+- Read one existing auth guard/decorator file — know the exact decorator name and import path to apply on new endpoints.
+- Read the standard API response wrapper type (e.g. `ApiResponse<T>`, `SuccessResponse`) — all new endpoints must use the same wrapper, not a custom shape.
+
 Display exploration summary — label each repo clearly:
 
 ```
@@ -526,7 +541,15 @@ Additional ACs discovered during exploration:
 
 ### 3.5b — Create sub-tasks (one per affected repo)
 
-For each repo that is affected, create a sub-task linked to the parent ticket.
+**Skip this entire section if `--no-subtasks` was passed in `$ARGUMENTS`.**
+
+**Duplicate guard — check before creating anything:**
+The ticket's `fields.subtasks` array was already fetched in STEP 1a. Before creating any sub-task:
+1. Check each existing sub-task summary for repo tags (`[BE]`, `[FE]`, `[AI]`, `[NOTIF]`, `[AI-CRON]`, `[CRON]`)
+2. If a sub-task already exists for a repo → **update its description** using `mcp__claude_ai_Atlassian__editJiraIssue` instead of creating a duplicate
+3. Only call `mcp__claude_ai_Atlassian__createJiraIssue` for repos that have NO existing sub-task
+
+For each repo that is affected (and has no existing sub-task), create a sub-task linked to the parent ticket.
 
 ```
 Tool: mcp__claude_ai_Atlassian__createJiraIssue
@@ -746,12 +769,28 @@ Branches:  [only list repos that are actually affected]
   - <only what cannot be satisfied by existing code>
 
 ─── Cross-Repo Contract ──────────────────────────────────
+  ⚠️  These interfaces are FROZEN once plan is approved.
+  Both repos must copy them verbatim — no renaming, no shape changes.
+
   Socket event: <event_name>  [NEW | EXTENDED — field added]
-  Payload shape (Backend → Frontend):
-    { field1: type, field2: type, ... }
+  // Backend emits / Frontend consumes — exact TypeScript:
+  interface <EventName>Payload {
+    field1: string;
+    field2: number;
+    field3?: SomeEnum;
+  }
+
   API endpoint (if REST): <METHOD /path>  [NEW | EXTENDED]
-  Request body: { ... }
-  Response shape: { ... }
+  // Request body — exact TypeScript:
+  interface <Action>Request {
+    field1: string;
+    field2?: number;
+  }
+  // Response — exact TypeScript:
+  interface <Action>Response {
+    data: { ... };
+    message: string;
+  }
 
 ─── Backend Changes (pw-server-v3) ──────────────────────
   [ordered: safest changes first, schema changes last]
@@ -897,7 +936,24 @@ For each affected repo, implement exactly what the approved plan says:
 - Always register socket.off() for every socket.on() (Frontend/Backend)
 - No comments, docstrings, or extra logging unless the ticket requires it
 - No refactoring beyond what the plan says
-- Cross-repo payloads must match exactly — if Backend sends `{ endDate: string }`, Frontend must read `endDate`
+- Cross-repo payloads must match the frozen TypeScript interfaces from the plan's Cross-Repo Contract — copy them verbatim, no renaming
+
+**Per-file protocol (follow for EVERY file, in order):**
+
+1. **Pre-write announcement** — before touching the file, state out loud:
+   - "File: `<path>` — currently exports: `<list existing public methods/components>`"
+   - "I am adding: `<exactly what>` after line ~N"
+   - "Imports I need to add: `<list>` — all present in `package.json` ✅"
+   - "Nothing else in this file changes."
+   If you cannot state all of the above confidently — re-read the file first.
+
+2. **Write the change** using the Edit tool.
+
+3. **Read-back verification** — immediately after the Edit, use the Read tool to read the changed section of the file (±10 lines around the change). Confirm:
+   - The new code is present and syntactically complete
+   - All existing methods/exports above and below the change are still intact
+   - No accidental whitespace corruption or missing braces
+   If anything looks wrong — fix it before running tsc.
 
 ---
 
@@ -1159,18 +1215,76 @@ Display a review summary:
 
 🚀 AUTO — do not stop or ask for confirmation. Execute immediately.
 
-For each repo with changes:
+Run the block for each repo that is in the ACTIVE REPO SET. Skip repos not affected.
 
 ```bash
-# Stage only the changed files explicitly — never git add . or git add -A
-git add <specific files>
-
+# ── Frontend ──────────────────────────────────────────
+cd /Users/sudheer7781/Documents/pw-react-client-v3
+git add <list every changed file explicitly — no wildcards>
+git status                             # confirm only intended files staged
 git commit -m "feat(<ticket-id>): <concise description>
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
-
 git push -u origin feat/<ticket-id>-<slug>
+echo "✅ Frontend pushed"
+
+# ── Backend ───────────────────────────────────────────
+cd /Users/sudheer7781/Documents/pw-server-v3
+git add <list every changed file explicitly — no wildcards>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ Backend pushed"
+
+# ── AI Server (if affected) ───────────────────────────
+cd /Users/sudheer7781/Documents/pw-ai-server
+git add <list every changed file explicitly>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ AI Server pushed"
+
+# ── Notifications (if affected) ───────────────────────
+cd /Users/sudheer7781/Documents/pw-notifications
+git add <list every changed file explicitly>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ Notifications pushed"
+
+# ── AI Cron Server (if affected) ──────────────────────
+cd /Users/sudheer7781/Documents/ai-cron-server
+git add <list every changed file explicitly>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ AI Cron Server pushed"
+
+# ── Cron Jobs (if affected) ───────────────────────────
+cd /Users/sudheer7781/Documents/pw-cron-jobs
+git add <list every changed file explicitly>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ Cron Jobs pushed"
 ```
+
+**Push rules:**
+- Stage files explicitly by path — never `git add .` or `git add -A`
+- Run `git status` after staging and visually confirm only the intended files are staged before committing
+- Never force push — if push is rejected, investigate the rejection reason and report it to the user
+- Never commit `.env`, secret files, or generated migration files that weren't explicitly in the plan
+- If a repo had no code changes, skip its block entirely — do not create an empty commit
 
 ---
 
@@ -1268,7 +1382,7 @@ The skill:
 1. Checks each of the 6 repos on GitHub for the branch — deploys where found, uses default dev URL where not
 2. Resolves the correct FQDN for every service (deployed → new preview URL, not found → default dev URL)
 3. Checks for existing Coolify apps; creates new ones where needed (strict order: BE → AI → NOTIF → AI-CRON → CRON → FE)
-4. Sets Dockerfile location to `/Dockerfile` automatically via API — no manual UI step
+4. ⚠️ Dockerfile location **cannot** be set via API (known bug) — after app creation, prompts user to set it to `/Dockerfile` in the Coolify UI before the first deploy
 5. Sets ALL env vars from `~/.claude/SECRETS.md` as the base, then overrides inter-service URLs with the correct FQDNs
 6. Deploys each service in order, waiting for each to finish before starting the next
 7. Returns all preview URLs
@@ -1346,7 +1460,7 @@ After posting the comment, display the final end-to-end summary:
 
 - **There are THREE mandatory stops**: STEP 3.6 (clarification questions), STEP 4 (plan approval), and STEP 7d (Prisma migration yes/no) — everything else runs automatically
 - **STEP 3.6 is non-negotiable** — always ask clarification questions before generating the plan, minimum 3 questions, every time
-- **STEP 3.5 is mandatory** — ticket enhancement and sub-task creation must happen before questions and plan, every time
+- **STEP 3.5 is mandatory** — ticket description update (3.5a) and sub-task creation (3.5b) must happen before questions and plan, every time. Exception: if `--no-subtasks` is in `$ARGUMENTS`, skip 3.5b only — 3.5a still runs
 - If user says "skip" at STEP 3.6 — list assumptions at the top of the plan and continue
 - Once the plan is approved, execute STEPS 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 in one continuous run
 - Never write code before plan is approved
