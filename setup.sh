@@ -93,6 +93,7 @@ echo "  export PW_AI_SERVER_PATH=\"/path/to/pw-ai-server\""
 echo "  export PW_NOTIFICATIONS_PATH=\"/path/to/pw-notifications\""
 echo "  export PW_AI_CRON_PATH=\"/path/to/ai-cron-server\""
 echo "  export PW_CRON_JOBS_PATH=\"/path/to/pw-cron-jobs\""
+echo "  export PW_MCP_SERVER_PATH=\"/path/to/PW-Mcp-Server\""
 echo ""
 echo "  See mcp/SECRETS.template.md for where to get each key."
 

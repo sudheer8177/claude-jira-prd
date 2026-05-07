@@ -25,6 +25,7 @@ Also check `$ARGUMENTS` for flags:
 | Notifications | `$PW_NOTIFICATIONS_PATH` | `PossibleWorks/pw-notifications` | `notif_dev` |
 | AI Cron Server | `$PW_AI_CRON_PATH` | `PossibleWorks/ai-cron-server` | `dev` |
 | Cron Jobs | `$PW_CRON_JOBS_PATH` | `PossibleWorks/pw-cron-jobs` | `jobs_dev` |
+| MCP Server | `$PW_MCP_SERVER_PATH` | `PossibleWorks/PW-Mcp-Server` | `dev` |
 
 ## MODULES REGISTRY
 
@@ -292,6 +293,7 @@ or:
 - Push notifications, email, in-app alerts → **Notifications**
 - Scheduled AI jobs, initiative/goal automation → **AI Cron Server**
 - Scheduled data jobs, reports, cron triggers → **Cron Jobs**
+- MCP tools, tool definitions, tool handlers → **MCP Server**
 - A feature can affect multiple repos — include all that apply
 
 Resolve each selected Key against the REPOS REGISTRY. The result is the **ACTIVE REPO SET** — the confirmed list of repos (Key + local path + GitHub repo + dev branch) that drives all downstream steps.
@@ -306,6 +308,7 @@ Display:
   ⬜ Notifications  (not needed)
   ⬜ AI Cron Server (not needed)
   ⬜ Cron Jobs      (not needed)
+  ⬜ MCP Server     (not needed)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -738,6 +741,7 @@ Branches:  [only list repos that are actually affected]
   Notifications   → feat/<ticket-id>-<slug>  (from notif_dev)     [if affected]
   AI Cron Server  → feat/<ticket-id>-<slug>  (from dev)           [if affected]
   Cron Jobs       → feat/<ticket-id>-<slug>  (from jobs_dev)      [if affected]
+  MCP Server      → feat/<ticket-id>-<slug>  (from dev)           [if affected]
 
 ─── Feature Type ────────────────────────────────────────
   Backend:  [EXTENSION | NEW FEATURE]
@@ -842,6 +846,12 @@ N. Integration points:  [NEW FEATURE only]
    - <what and why>
 ...
 
+─── MCP Server Changes (PW-Mcp-Server) ────────────────────
+1. <confirmed file path>  [EXTEND | NEW FILE]
+   - AC coverage: <which AC>
+   - <what and why>
+...
+
 ─── Acceptance Criteria Coverage ────────────────────────
 ✅ AC 1: <file:method that satisfies it + how>
 ✅ AC 2: <file:method that satisfies it + how>
@@ -907,6 +917,11 @@ git checkout -b feat/<ticket-id>-<slug>
 # Cron Jobs (if needed)
 cd $PW_CRON_JOBS_PATH
 git checkout jobs_dev && git pull origin jobs_dev
+git checkout -b feat/<ticket-id>-<slug>
+
+# MCP Server (if needed)
+cd $PW_MCP_SERVER_PATH
+git checkout dev && git pull origin dev
 git checkout -b feat/<ticket-id>-<slug>
 ```
 
@@ -1302,6 +1317,7 @@ For each repo use `gh pr create` targeting the correct dev branch:
 | Notifications | `notif_dev` |
 | AI Cron Server | `dev` |
 | Cron Jobs | `jobs_dev` |
+| MCP Server | `dev` |
 
 **Title:** `feat(<ticket-id>): <Jira summary>`
 
@@ -1349,6 +1365,7 @@ For each repo use `gh pr create` targeting the correct dev branch:
   Notifications   → feat/<ticket-id>-<slug>  (if applicable)
   AI Cron Server  → feat/<ticket-id>-<slug>  (if applicable)
   Cron Jobs       → feat/<ticket-id>-<slug>  (if applicable)
+  MCP Server      → feat/<ticket-id>-<slug>  (if applicable)
 
   Pull Requests:
   Frontend        → <PR URL>  (if applicable)
@@ -1357,6 +1374,7 @@ For each repo use `gh pr create` targeting the correct dev branch:
   Notifications   → <PR URL>  (if applicable)
   AI Cron Server  → <PR URL>  (if applicable)
   Cron Jobs       → <PR URL>  (if applicable)
+  MCP Server      → <PR URL>  (if applicable)
 
   Code Review: ✅ passed (all issues fixed before commit)
 

@@ -48,6 +48,7 @@
 | `PW_NOTIFICATIONS_PATH` | `/path/to/pw-notifications` |
 | `PW_AI_CRON_PATH` | `/path/to/ai-cron-server` |
 | `PW_CRON_JOBS_PATH` | `/path/to/pw-cron-jobs` |
+| `PW_MCP_SERVER_PATH` | `/path/to/PW-Mcp-Server` |
 
 **Set these** to the absolute paths where you cloned each repo on your machine.
 
@@ -70,4 +71,5 @@ export PW_AI_SERVER_PATH="/path/to/pw-ai-server"
 export PW_NOTIFICATIONS_PATH="/path/to/pw-notifications"
 export PW_AI_CRON_PATH="/path/to/ai-cron-server"
 export PW_CRON_JOBS_PATH="/path/to/pw-cron-jobs"
+export PW_MCP_SERVER_PATH="/path/to/PW-Mcp-Server"
 ```

@@ -22,6 +22,7 @@ Extract the ticket ID from the input (works with bare ID like `PW-123` or full J
 | Notifications | `$PW_NOTIFICATIONS_PATH` | `PossibleWorks/pw-notifications` | `notif_dev` |
 | AI Cron Server | `$PW_AI_CRON_PATH` | `PossibleWorks/ai-cron-server` | `dev` |
 | Cron Jobs | `$PW_CRON_JOBS_PATH` | `PossibleWorks/pw-cron-jobs` | `jobs_dev` |
+| MCP Server | `$PW_MCP_SERVER_PATH` | `PossibleWorks/PW-Mcp-Server` | `dev` |
 
 ---
 
@@ -254,6 +255,7 @@ Read the ticket summary, description, and AC. Decide which repos are affected:
 - Push notifications, email notifications, in-app alerts → **Notifications**
 - Scheduled AI jobs, initiative/goal automation → **AI Cron Server**
 - Scheduled data jobs, reports, cron triggers → **Cron Jobs**
+- MCP tools, tool definitions, tool handlers → **MCP Server**
 - A feature can affect multiple repos — include all that apply
 
 Display routing result:
@@ -266,6 +268,7 @@ Display routing result:
   ⬜ Notifications   (not needed)
   ⬜ AI Cron Server  (not needed)
   ⬜ Cron Jobs       (not needed)
+  ⬜ MCP Server      (not needed)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -442,6 +445,11 @@ git checkout -b feat/<ticket-id>-<slug>
 # Cron Jobs (if needed)
 cd $PW_CRON_JOBS_PATH
 git checkout jobs_dev && git pull origin jobs_dev
+git checkout -b feat/<ticket-id>-<slug>
+
+# MCP Server (if needed)
+cd $PW_MCP_SERVER_PATH
+git checkout dev && git pull origin dev
 git checkout -b feat/<ticket-id>-<slug>
 ```
 
@@ -627,6 +635,7 @@ For each repo use `gh pr create` targeting the correct dev branch:
 | Notifications | `notif_dev` |
 | AI Cron Server | `dev` |
 | Cron Jobs | `jobs_dev` |
+| MCP Server | `dev` |
 
 **Title:** `feat(<ticket-id>): <Jira summary>`
 
