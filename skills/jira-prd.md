@@ -16,12 +16,12 @@ Extract the ticket ID from the input (works with bare ID like `PW-123` or full J
 
 | Repo | Path | GitHub | Dev Branch |
 |------|------|--------|------------|
-| Frontend | `/Users/sudheer7781/Documents/pw-react-client-v3` | `PossibleWorks/pw-react-client-v3` | `dev` |
-| Backend | `/Users/sudheer7781/Documents/pw-server-v3` | `PossibleWorks/pw-server-v3` | `coolify-dev-v3` |
-| AI Server | `/Users/sudheer7781/Documents/pw-ai-server` | `PossibleWorks/pw-ai-server` | `dev` |
-| Notifications | `/Users/sudheer7781/Documents/pw-notifications` | `PossibleWorks/pw-notifications` | `notif_dev` |
-| AI Cron Server | `/Users/sudheer7781/Documents/ai-cron-server` | `PossibleWorks/ai-cron-server` | `dev` |
-| Cron Jobs | `/Users/sudheer7781/Documents/pw-cron-jobs` | `PossibleWorks/pw-cron-jobs` | `jobs_dev` |
+| Frontend | `$PW_FRONTEND_PATH` | `PossibleWorks/pw-react-client-v3` | `dev` |
+| Backend | `$PW_BACKEND_PATH` | `PossibleWorks/pw-server-v3` | `coolify-dev-v3` |
+| AI Server | `$PW_AI_SERVER_PATH` | `PossibleWorks/pw-ai-server` | `dev` |
+| Notifications | `$PW_NOTIFICATIONS_PATH` | `PossibleWorks/pw-notifications` | `notif_dev` |
+| AI Cron Server | `$PW_AI_CRON_PATH` | `PossibleWorks/ai-cron-server` | `dev` |
+| Cron Jobs | `$PW_CRON_JOBS_PATH` | `PossibleWorks/pw-cron-jobs` | `jobs_dev` |
 
 ---
 
@@ -287,7 +287,7 @@ For each affected repo, the subagent prompt must instruct it to:
 Each subagent prompt example:
 
 ```
-Explore the codebase at /Users/.../pw-react-client-v3 for a ticket about "<ticket summary>".
+Explore the codebase at $PW_FRONTEND_PATH for a ticket about "<ticket summary>".
 
 Find and read:
 - .claude/CLAUDE.md
@@ -415,32 +415,32 @@ For each affected repo, checkout its dev branch, pull latest, then create the fe
 
 ```bash
 # Frontend
-cd /Users/sudheer7781/Documents/pw-react-client-v3
+cd $PW_FRONTEND_PATH
 git checkout dev && git pull origin dev
 git checkout -b feat/<ticket-id>-<slug>
 
 # Backend
-cd /Users/sudheer7781/Documents/pw-server-v3
+cd $PW_BACKEND_PATH
 git checkout coolify-dev-v3 && git pull origin coolify-dev-v3
 git checkout -b feat/<ticket-id>-<slug>
 
 # AI Server (if needed)
-cd /Users/sudheer7781/Documents/pw-ai-server
+cd $PW_AI_SERVER_PATH
 git checkout dev && git pull origin dev
 git checkout -b feat/<ticket-id>-<slug>
 
 # Notifications (if needed)
-cd /Users/sudheer7781/Documents/pw-notifications
+cd $PW_NOTIFICATIONS_PATH
 git checkout notif_dev && git pull origin notif_dev
 git checkout -b feat/<ticket-id>-<slug>
 
 # AI Cron Server (if needed)
-cd /Users/sudheer7781/Documents/ai-cron-server
+cd $PW_AI_CRON_PATH
 git checkout dev && git pull origin dev
 git checkout -b feat/<ticket-id>-<slug>
 
 # Cron Jobs (if needed)
-cd /Users/sudheer7781/Documents/pw-cron-jobs
+cd $PW_CRON_JOBS_PATH
 git checkout jobs_dev && git pull origin jobs_dev
 git checkout -b feat/<ticket-id>-<slug>
 ```

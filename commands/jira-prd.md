@@ -19,12 +19,12 @@ Also check `$ARGUMENTS` for flags:
 
 | Key | Local Path | GitHub | Dev Branch |
 |-----|------------|--------|------------|
-| Frontend | `/Users/sudheer7781/Documents/pw-react-client-v3` | `PossibleWorks/pw-react-client-v3` | `dev` |
-| Backend | `/Users/sudheer7781/Documents/pw-server-v3` | `PossibleWorks/pw-server-v3` | `coolify-dev-v3` |
-| AI Server | `/Users/sudheer7781/Documents/pw-ai-server` | `PossibleWorks/pw-ai-server` | `dev` |
-| Notifications | `/Users/sudheer7781/Documents/pw-notifications` | `PossibleWorks/pw-notifications` | `notif_dev` |
-| AI Cron Server | `/Users/sudheer7781/Documents/ai-cron-server` | `PossibleWorks/ai-cron-server` | `dev` |
-| Cron Jobs | `/Users/sudheer7781/Documents/pw-cron-jobs` | `PossibleWorks/pw-cron-jobs` | `jobs_dev` |
+| Frontend | `$PW_FRONTEND_PATH` | `PossibleWorks/pw-react-client-v3` | `dev` |
+| Backend | `$PW_BACKEND_PATH` | `PossibleWorks/pw-server-v3` | `coolify-dev-v3` |
+| AI Server | `$PW_AI_SERVER_PATH` | `PossibleWorks/pw-ai-server` | `dev` |
+| Notifications | `$PW_NOTIFICATIONS_PATH` | `PossibleWorks/pw-notifications` | `notif_dev` |
+| AI Cron Server | `$PW_AI_CRON_PATH` | `PossibleWorks/ai-cron-server` | `dev` |
+| Cron Jobs | `$PW_CRON_JOBS_PATH` | `PossibleWorks/pw-cron-jobs` | `jobs_dev` |
 
 ## MODULES REGISTRY
 
@@ -300,8 +300,8 @@ Display:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Repos affected:
-  ✅ Frontend    → /Users/.../pw-react-client-v3   (dev)
-  ✅ Backend     → /Users/.../pw-server-v3          (coolify-dev-v3)
+  ✅ Frontend    → $PW_FRONTEND_PATH   (dev)
+  ✅ Backend     → $PW_BACKEND_PATH    (coolify-dev-v3)
   ⬜ AI Server      (not needed)
   ⬜ Notifications  (not needed)
   ⬜ AI Cron Server (not needed)
@@ -880,32 +880,32 @@ For each affected repo, checkout its dev branch, pull latest, then create the fe
 
 ```bash
 # Frontend
-cd /Users/sudheer7781/Documents/pw-react-client-v3
+cd $PW_FRONTEND_PATH
 git checkout dev && git pull origin dev
 git checkout -b feat/<ticket-id>-<slug>
 
 # Backend
-cd /Users/sudheer7781/Documents/pw-server-v3
+cd $PW_BACKEND_PATH
 git checkout coolify-dev-v3 && git pull origin coolify-dev-v3
 git checkout -b feat/<ticket-id>-<slug>
 
 # AI Server (if needed)
-cd /Users/sudheer7781/Documents/pw-ai-server
+cd $PW_AI_SERVER_PATH
 git checkout dev && git pull origin dev
 git checkout -b feat/<ticket-id>-<slug>
 
 # Notifications (if needed)
-cd /Users/sudheer7781/Documents/pw-notifications
+cd $PW_NOTIFICATIONS_PATH
 git checkout notif_dev && git pull origin notif_dev
 git checkout -b feat/<ticket-id>-<slug>
 
 # AI Cron Server (if needed)
-cd /Users/sudheer7781/Documents/ai-cron-server
+cd $PW_AI_CRON_PATH
 git checkout dev && git pull origin dev
 git checkout -b feat/<ticket-id>-<slug>
 
 # Cron Jobs (if needed)
-cd /Users/sudheer7781/Documents/pw-cron-jobs
+cd $PW_CRON_JOBS_PATH
 git checkout jobs_dev && git pull origin jobs_dev
 git checkout -b feat/<ticket-id>-<slug>
 ```
@@ -991,7 +991,7 @@ Display:
 
 If user replies **"yes"**:
 ```bash
-cd /Users/sudheer7781/Documents/pw-server-v3
+cd $PW_BACKEND_PATH
 npx prisma migrate dev --name feat-<ticket-id>-<slug>
 npx prisma generate
 ```
@@ -1056,8 +1056,8 @@ For **each repo in the ACTIVE REPO SET**, invoke `/write-tests` passing that rep
 
 Examples (only run for repos that actually have code changes in this ticket):
 ```
-/write-tests /Users/sudheer7781/Documents/pw-server-v3 <TICKET-ID>
-/write-tests /Users/sudheer7781/Documents/pw-react-client-v3 <TICKET-ID>
+/write-tests $PW_BACKEND_PATH <TICKET-ID>
+/write-tests $PW_FRONTEND_PATH <TICKET-ID>
 ```
 
 **The skill is scoped to the files changed for THIS feature in that repo** — it reads `git diff` to find only the files touched by this ticket's branch, then writes tests specifically for those changed methods, endpoints, socket events, and components. It does NOT write tests for the whole repo.

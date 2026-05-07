@@ -101,9 +101,9 @@ For implementation details — file maps, component behaviour, config keys, pipe
 
 | Repo      | Spec                                                                          |
 | --------- | ----------------------------------------------------------------------------- |
-| Frontend  | `/Users/mohdamankhan/Desktop/Possibleworks/pw-react-client-v3/.claude/ERP.md` |
-| Backend   | `/Users/mohdamankhan/Desktop/Possibleworks/pw-server-v3/.claude/ERP.md`       |
-| AI Server | `/Users/mohdamankhan/Desktop/Possibleworks/pw-ai-server/.claude/ERP.md`       |
+| Frontend  | `$PW_FRONTEND_PATH/.claude/ERP.md` |
+| Backend   | `$PW_BACKEND_PATH/.claude/ERP.md`       |
+| AI Server | `$PW_AI_SERVER_PATH/.claude/ERP.md`       |
 
 ---
 

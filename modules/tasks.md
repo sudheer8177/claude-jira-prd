@@ -128,11 +128,11 @@ For implementation details — file maps, component structure, socket event list
 
 | Repo | Spec |
 |------|------|
-| Frontend | `/Users/sudheer7781/Documents/pw-react-client-v3/.claude/TASKS.md` |
-| Backend | `/Users/sudheer7781/Documents/pw-server-v3/.claude/TASKS.md` |
-| AI Cron Server | `/Users/sudheer7781/Documents/ai-cron-server/.claude/TASKS.md` |
-| Cron Jobs | `/Users/sudheer7781/Documents/pw-cron-jobs/.claude/TASKS.md` |
-| Notifications | `/Users/sudheer7781/Documents/pw-notifications/.claude/TASKS.md` |
+| Frontend | `$PW_FRONTEND_PATH/.claude/TASKS.md` |
+| Backend | `$PW_BACKEND_PATH/.claude/TASKS.md` |
+| AI Cron Server | `$PW_AI_CRON_PATH/.claude/TASKS.md` |
+| Cron Jobs | `$PW_CRON_JOBS_PATH/.claude/TASKS.md` |
+| Notifications | `$PW_NOTIFICATIONS_PATH/.claude/TASKS.md` |
 
 _(Create these spec files if they don't exist yet — one per repo, describing the file map and implementation details for that repo's task code)_
 

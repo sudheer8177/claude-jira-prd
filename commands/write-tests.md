@@ -1,6 +1,6 @@
 ---
 description: Write unit + functional tests for a ticket — targets 90% AC coverage
-argument-hint: <repo-path> <ticket-id>  e.g. /Users/sudheer7781/Documents/pw-server-v3 PW-123
+argument-hint: <repo-path> <ticket-id>  e.g. $PW_BACKEND_PATH PW-123
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, mcp__claude_ai_Atlassian__getJiraIssue
 ---
 

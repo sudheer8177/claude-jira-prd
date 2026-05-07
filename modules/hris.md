@@ -132,11 +132,11 @@ For implementation details — file maps, component structure, socket event list
 
 | Repo | Spec |
 |------|------|
-| Frontend | `/Users/sudheer7781/Documents/pw-react-client-v3/.claude/HRIS.md` |
-| Backend | `/Users/sudheer7781/Documents/pw-server-v3/.claude/HRIS.md` |
-| AI Server | `/Users/sudheer7781/Documents/pw-ai-server/.claude/HRIS.md` |
-| Notifications | `/Users/sudheer7781/Documents/pw-notifications/.claude/HRIS.md` |
-| Cron Jobs | `/Users/sudheer7781/Documents/pw-cron-jobs/.claude/HRIS.md` |
+| Frontend | `$PW_FRONTEND_PATH/.claude/HRIS.md` |
+| Backend | `$PW_BACKEND_PATH/.claude/HRIS.md` |
+| AI Server | `$PW_AI_SERVER_PATH/.claude/HRIS.md` |
+| Notifications | `$PW_NOTIFICATIONS_PATH/.claude/HRIS.md` |
+| Cron Jobs | `$PW_CRON_JOBS_PATH/.claude/HRIS.md` |
 
 _(Create these spec files if they don't exist yet — one per repo, describing the file map and implementation details for that repo's HRIS code)_
 
