@@ -1234,7 +1234,7 @@ Run the block for each repo that is in the ACTIVE REPO SET. Skip repos not affec
 
 ```bash
 # ── Frontend ──────────────────────────────────────────
-cd /Users/sudheer7781/Documents/pw-react-client-v3
+cd $PW_FRONTEND_PATH
 git add <list every changed file explicitly — no wildcards>
 git status                             # confirm only intended files staged
 git commit -m "feat(<ticket-id>): <concise description>
@@ -1244,7 +1244,7 @@ git push -u origin feat/<ticket-id>-<slug>
 echo "✅ Frontend pushed"
 
 # ── Backend ───────────────────────────────────────────
-cd /Users/sudheer7781/Documents/pw-server-v3
+cd $PW_BACKEND_PATH
 git add <list every changed file explicitly — no wildcards>
 git status
 git commit -m "feat(<ticket-id>): <concise description>
@@ -1254,7 +1254,7 @@ git push -u origin feat/<ticket-id>-<slug>
 echo "✅ Backend pushed"
 
 # ── AI Server (if affected) ───────────────────────────
-cd /Users/sudheer7781/Documents/pw-ai-server
+cd $PW_AI_SERVER_PATH
 git add <list every changed file explicitly>
 git status
 git commit -m "feat(<ticket-id>): <concise description>
@@ -1264,7 +1264,7 @@ git push -u origin feat/<ticket-id>-<slug>
 echo "✅ AI Server pushed"
 
 # ── Notifications (if affected) ───────────────────────
-cd /Users/sudheer7781/Documents/pw-notifications
+cd $PW_NOTIFICATIONS_PATH
 git add <list every changed file explicitly>
 git status
 git commit -m "feat(<ticket-id>): <concise description>
@@ -1274,7 +1274,7 @@ git push -u origin feat/<ticket-id>-<slug>
 echo "✅ Notifications pushed"
 
 # ── AI Cron Server (if affected) ──────────────────────
-cd /Users/sudheer7781/Documents/ai-cron-server
+cd $PW_AI_CRON_PATH
 git add <list every changed file explicitly>
 git status
 git commit -m "feat(<ticket-id>): <concise description>
@@ -1284,7 +1284,7 @@ git push -u origin feat/<ticket-id>-<slug>
 echo "✅ AI Cron Server pushed"
 
 # ── Cron Jobs (if affected) ───────────────────────────
-cd /Users/sudheer7781/Documents/pw-cron-jobs
+cd $PW_CRON_JOBS_PATH
 git add <list every changed file explicitly>
 git status
 git commit -m "feat(<ticket-id>): <concise description>
@@ -1292,6 +1292,16 @@ git commit -m "feat(<ticket-id>): <concise description>
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 git push -u origin feat/<ticket-id>-<slug>
 echo "✅ Cron Jobs pushed"
+
+# ── MCP Server (if affected) ──────────────────────────
+cd $PW_MCP_SERVER_PATH
+git add <list every changed file explicitly>
+git status
+git commit -m "feat(<ticket-id>): <concise description>
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push -u origin feat/<ticket-id>-<slug>
+echo "✅ MCP Server pushed"
 ```
 
 **Push rules:**
